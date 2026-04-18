@@ -1,12 +1,13 @@
 import Foundation
 
-struct ReceivedFile: Identifiable, Equatable {
-    let id = UUID()
+struct ReceivedFile: Identifiable, Codable, Equatable {
+    let id: UUID
     let filename: String
-    let byteCount: Int
+    let relativePath: String
+    let size: Int
     let receivedAt: Date
 
     var formattedSize: String {
-        ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file)
+        ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
     }
 }

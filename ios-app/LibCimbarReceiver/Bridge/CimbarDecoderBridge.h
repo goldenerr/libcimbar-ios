@@ -31,12 +31,25 @@ typedef NS_ENUM(NSInteger, CimbarDecoderBridgePhase) {
 
 @end
 
+@interface CimbarDecoderBridgeCompletedFile : NSObject
+
+@property (nonatomic, readonly) NSString *filename;
+@property (nonatomic, readonly) NSData *data;
+
+- (instancetype)initWithFilename:(NSString *)filename
+                            data:(NSData *)data NS_DESIGNATED_INITIALIZER;
+
+- (instancetype)init NS_UNAVAILABLE;
+
+@end
+
 @interface CimbarDecoderBridge : NSObject
 
 - (instancetype)init;
 - (void)reset;
 - (void)configureMode:(NSInteger)mode;
 - (nullable CimbarDecoderBridgeSnapshot *)processSampleBuffer:(CMSampleBufferRef)sampleBuffer;
+- (nullable CimbarDecoderBridgeCompletedFile *)takeCompletedFile;
 
 @end
 

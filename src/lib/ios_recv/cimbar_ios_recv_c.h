@@ -1,6 +1,7 @@
 /* This code is subject to the terms of the Mozilla Public License, v.2.0. http://mozilla.org/MPL/2.0/. */
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -17,6 +18,13 @@ typedef struct {
     int64_t completed_file_id;
 } cimbar_ios_recv_progress;
 
+typedef struct {
+    uint32_t file_id;
+    char* filename;
+    unsigned char* data;
+    size_t data_size;
+} cimbar_ios_recv_completed_file;
+
 cimbar_ios_recv_handle* cimbar_ios_recv_create(void);
 void cimbar_ios_recv_destroy(cimbar_ios_recv_handle* handle);
 int cimbar_ios_recv_reset(cimbar_ios_recv_handle* handle);
@@ -28,6 +36,9 @@ int cimbar_ios_recv_process_frame(cimbar_ios_recv_handle* handle,
                                   int format,
                                   unsigned stride,
                                   cimbar_ios_recv_progress* out_progress);
+int cimbar_ios_recv_take_completed_file(cimbar_ios_recv_handle* handle,
+                                        cimbar_ios_recv_completed_file* out_file);
+void cimbar_ios_recv_completed_file_release(cimbar_ios_recv_completed_file* file);
 
 #ifdef __cplusplus
 }

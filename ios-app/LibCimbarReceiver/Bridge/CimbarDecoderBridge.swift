@@ -1,8 +1,15 @@
 import AVFoundation
 import Foundation
 
+struct CompletedDecodedFile {
+    let filename: String
+    let data: Data
+}
+
 final class CimbarDecoderBridgeService: ObservableObject {
     @Published private(set) var scanState = ScanState()
+
+    var onCompletedFile: ((String, Data) -> Void)?
 
     private let native = CimbarDecoderBridge()
 
@@ -32,7 +39,19 @@ final class CimbarDecoderBridgeService: ObservableObject {
             }
         }
 
+        if let completedFile = takeCompletedFile() {
+            onCompletedFile?(completedFile.filename, completedFile.data)
+        }
+
         return snapshot
+    }
+
+    private func takeCompletedFile() -> CompletedDecodedFile? {
+        guard let completedFile = native.takeCompletedFile() else {
+            return nil
+        }
+
+        return CompletedDecodedFile(filename: completedFile.filename, data: completedFile.data)
     }
 }
 

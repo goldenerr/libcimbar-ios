@@ -24,6 +24,20 @@
 
 @end
 
+@implementation CimbarDecoderBridgeCompletedFile
+
+- (instancetype)initWithFilename:(NSString *)filename
+                            data:(NSData *)data {
+    self = [super init];
+    if (self) {
+        _filename = [filename copy];
+        _data = [data copy];
+    }
+    return self;
+}
+
+@end
+
 namespace {
 
 CimbarDecoderBridgePhase bridge_phase_for_progress(int phase) {
@@ -124,6 +138,25 @@ CimbarDecoderBridgePhase bridge_phase_for_progress(int phase) {
 
     CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
     return snapshot;
+}
+
+- (nullable CimbarDecoderBridgeCompletedFile *)takeCompletedFile {
+    if (_handle == nullptr) {
+        return nil;
+    }
+
+    cimbar_ios_recv_completed_file completed = {0};
+    if (cimbar_ios_recv_take_completed_file(_handle, &completed) != 0) {
+        return nil;
+    }
+
+    NSString *filename = completed.filename != nullptr
+        ? [NSString stringWithUTF8String:completed.filename]
+        : @"received.bin";
+    NSData *data = [NSData dataWithBytes:completed.data length:completed.data_size];
+    cimbar_ios_recv_completed_file_release(&completed);
+
+    return [[CimbarDecoderBridgeCompletedFile alloc] initWithFilename:filename data:data];
 }
 
 @end

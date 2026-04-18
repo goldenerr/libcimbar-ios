@@ -3,6 +3,13 @@ import SwiftUI
 struct ReceivedFilesView: View {
     @EnvironmentObject private var appState: AppState
 
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
     var body: some View {
         NavigationStack {
             Group {
@@ -19,6 +26,12 @@ struct ReceivedFilesView: View {
                                 .font(.headline)
                             Text(file.formattedSize)
                                 .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Text(file.relativePath)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(dateFormatter.string(from: file.receivedAt))
+                                .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
