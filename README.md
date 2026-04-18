@@ -1,120 +1,123 @@
-### [INTRODUCTION](https://github.com/sz3/cimbar) | [ABOUT](https://github.com/sz3/cimbar/blob/master/ABOUT.md) | [CFC](https://github.com/sz3/cfc) | LIBCIMBAR
-### [DETAILS](DETAILS.md) | [PERFORMANCE](PERFORMANCE.md) | [TODO](TODO.md)
+# libcimbar-ios
 
-## libcimbar: Color Icon Matrix Barcodes
+An iOS-focused fork of [`sz3/libcimbar`](https://github.com/sz3/libcimbar) for receiving animated cimbar transfers on iPhone.
 
-Behold: an experimental barcode format for air-gapped data transfer.
+This repository keeps the upstream C++ barcode core and adds an iOS receiver app scaffold with a native SwiftUI interface, AVFoundation camera pipeline, Objective-C++ bridge, file persistence, and sharing flow.
 
-It can sustain speeds of 850 kilobits/s (~106 KB/s) using just a computer monitor and a smartphone camera!
+## What this fork adds
 
-<p align="center">
-<img src="https://github.com/sz3/cimbar-samples/blob/v0.6/b/4cecc30f.png" width="70%" title="A non-animated mode-B cimbar code" >
-</p>
+Compared with upstream `libcimbar`, this fork adds:
 
-## Explain?
+- a reusable `src/lib/ios_recv/` C++ receive-session module
+- a narrow C API for calling the receiver from Objective-C++ / Swift
+- an XcodeGen-managed iOS app in `ios-app/`
+- SwiftUI scanning UI with live camera preview
+- completed-file persistence under Application Support
+- in-app file list and share sheet flow
 
-The encoder outputs an animated barcode to a computer or smartphone screen:
-* Encoder web app: https://cimbar.org
+## Current status
 
-While the decoder is a cell phone app that uses the phone camera to read the animated barcode:
-* Decoder android app: https://github.com/sz3/cfc
+Implemented in this repo:
 
-No internet/bluetooth/NFC/etc is used. All data is transmitted through the camera lens. You can try it out yourself, or take my word that it works. :)
+- core frame processing and chunk decode pipeline
+- fountain reconstruction and decompression
+- C API wrapper for iOS integration
+- SwiftUI app shell for scan / files / share UX
+- AVFoundation camera capture pipeline
+- local file persistence and received-file index
 
-## How does it work?
+Known limitations:
 
-`cimbar` is a high-density 2D barcode format. Data is stored in a grid of colored tiles -- bits are encoded based on which tile is chosen, and which color is chosen to draw the tile. Reed Solomon error correction is applied on the data, to account for the lossy nature of the video -> digital decoding. Sub-1% error rates are expected, and corrected.
+- the iOS app has been scaffolded and wired up, but has **not yet been fully validated on a physical iPhone** in this environment
+- desktop Linux builds for some viewer / GL targets may require system OpenGL ES headers (`GLES3/gl3.h`)
+- the generated `.xcodeproj` is not committed; it must be generated on macOS from `ios-app/project.yml`
 
-`libcimbar`, this optimized implementation, includes a simple protocol for file encoding built on fountain codes (`wirehair`) and zstd compression. Files of up to 33MB (after compression!) are encoded in a series of cimbar codes, which can be output as images or a live video feed. Once enough distinct image frames have been decoded successfully, the file will be reconstructed and decompressed successfully. This is true even if the images are received out of order, or if some have been corrupted or are missing.
+## Repository layout
 
-## Platforms
+- `src/lib/ios_recv/` — iOS-oriented receive-session core and C API
+- `src/exe/cimbar_recv2/` — CLI receiver refactored to reuse the session abstraction
+- `ios-app/` — XcodeGen-based iOS app project
+- `docs/plans/` — implementation plan documents
+- `docs/superpowers/specs/` — design/spec documents
 
-The code is written in C++, and developed/tested on amd64+linux, arm64+android (decoder only), and emscripten+WASM (encoder only). It probably works, or can be made to work, on other platforms.
+## Quick start
 
-Crucially, because the encoder compiles to asmjs and wasm, it can run on anything with a modern web browser. For offline use, you can either install cimbar.org as a progressive web app, or [download the latest release](https://github.com/sz3/libcimbar/releases/latest) of `cimbar_js.html`, save it locally, and open it in your web browser.
+### Build the C++ core on Linux
 
-## Library dependencies
+Install dependencies:
 
-[OpenCV](https://opencv.org/) and [GLFW](https://github.com/glfw/glfw) (+ OpenGL ES headers) must be installed before building. All other dependencies are included in the source tree.
-
-* opencv - https://opencv.org/ (`libopencv-dev`)
-* GLFW - https://github.com/glfw/glfw (`libglfw3-dev`)
-* GLES3/gl3.h - `libgles2-mesa-dev`
-* base - https://github.com/r-lyeh-archived/base
-* catch2 - https://github.com/catchorg/Catch2
-* concurrentqueue - https://github.com/cameron314/concurrentqueue
-* cxxopts - https://github.com/jarro2783/cxxopts (used for command line tools)
-* fmt - https://github.com/fmtlib/fmt
-* intx - https://github.com/chfast/intx
-* libcorrect - https://github.com/quiet/libcorrect
-* libpopcnt - https://github.com/kimwalisch/libpopcnt
-* PicoSHA2 - https://github.com/okdshin/PicoSHA2 (used for testing)
-* stb_image - https://github.com/nothings/stb (for loading embedded pngs)
-* wirehair - https://github.com/catid/wirehair
-* zstd - https://github.com/facebook/zstd
-
-## Build
-
-1. install opencv and GLFW. On ubuntu/debian, this looks like:
-```
+```bash
 sudo apt install libopencv-dev libglfw3-dev libgles2-mesa-dev
 ```
 
-2. run the cmake + make incantation
-```
+Build:
+
+```bash
 cmake .
 make -j7
 make install
 ```
 
-By default, libcimbar will try to install build products under `./dist/bin/`.
+Run the iOS receiver unit target if available in your build tree.
 
-To build cimbar.js (what cimbar.org uses), see [WASM](WASM.md).
+### Run the iOS app on macOS with Xcode
 
-## Usage
+See:
 
-Encode:
-* large input files may fill up your disk with pngs!
+- [`ios-app/README.md`](ios-app/README.md)
+- [`docs/ios/ios-app-macos-xcode-setup.md`](docs/ios/ios-app-macos-xcode-setup.md)
 
-```
-./cimbar --encode -i inputfile.txt -o outputprefix
-```
+Short version:
 
-Decode (extracts file into output directory):
-```
-./cimbar outputprefix*.png -o /tmp
-```
-
-Decode a series of encoded images from stdin:
-```
-echo outputprefix*.png | ./cimbar -o /tmp
+```bash
+brew install xcodegen
+cd ios-app
+xcodegen generate
+open LibCimbarReceiver.xcodeproj
 ```
 
-Encode and animate to window:
-```
-./cimbar_send inputfile.pdf
-```
+Then in Xcode:
 
-You can also encode a file using [cimbar.org](https://cimbar.org), or the latest [release](https://github.com/sz3/libcimbar/releases/latest).
+1. select the `LibCimbarReceiver` target
+2. set a unique bundle identifier
+3. choose your Apple Development team for signing
+4. run on a physical iPhone
+5. grant camera access when prompted
 
-## Performance numbers
+## iOS app workflow
 
-[PERFORMANCE](PERFORMANCE.md)
+The intended receive flow is:
 
-## Implementation details
+1. open the iOS app on an iPhone
+2. point the camera at another device playing animated cimbar frames
+3. let the decoder accumulate frames and reconstruct the payload
+4. the completed file is saved locally and surfaced in the UI
+5. share/export the file from the success sheet or Files tab
 
-[DETAILS](DETAILS.md)
+Stored files are written under the app's Application Support directory in a `ReceivedFiles/` folder, with metadata tracked in `index.json`.
 
-## Room for improvement/next steps
+## Upstream project background
 
-[TODO](TODO.md)
+`libcimbar` is an experimental high-density color barcode format for air-gapped transfer. The upstream project also includes:
 
-## Inspiration
+- encoder web app: https://cimbar.org
+- Android receiver app: https://github.com/sz3/cfc
+- upstream library repo: https://github.com/sz3/libcimbar
 
-* https://github.com/JohannesBuchner/imagehash/
-* https://github.com/divan/txqr
-* https://en.wikipedia.org/wiki/High_Capacity_Color_Barcode
+## Original upstream build notes
 
-## Would you like to know more?
+The upstream C++ project depends on:
 
-### [INTRODUCTION](https://github.com/sz3/cimbar) | [ABOUT](https://github.com/sz3/cimbar/blob/master/ABOUT.md)
+- OpenCV — `libopencv-dev`
+- GLFW — `libglfw3-dev`
+- OpenGL ES headers — `libgles2-mesa-dev`
+- bundled third-party dependencies already vendored in the tree
+
+For WebAssembly / cimbar.js, see [`WASM.md`](WASM.md).
+
+## Additional references
+
+- [`DETAILS.md`](DETAILS.md)
+- [`PERFORMANCE.md`](PERFORMANCE.md)
+- [`TODO.md`](TODO.md)
+- [`ABOUT.md`](https://github.com/sz3/cimbar/blob/master/ABOUT.md)
