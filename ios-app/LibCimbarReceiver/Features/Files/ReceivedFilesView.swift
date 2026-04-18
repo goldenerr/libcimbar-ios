@@ -34,10 +34,33 @@ struct ReceivedFilesView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            appState.presentShareSheet(for: file)
+                        }
+                        .contextMenu {
+                            Button {
+                                appState.presentShareSheet(for: file)
+                            } label: {
+                                Label("Share", systemImage: "square.and.arrow.up")
+                            }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button {
+                                appState.presentShareSheet(for: file)
+                            } label: {
+                                Label("Share", systemImage: "square.and.arrow.up")
+                            }
+                            .tint(.accentColor)
+                        }
                     }
                 }
             }
             .navigationTitle("Files")
+        }
+        .sheet(item: $appState.shareSheetFile, onDismiss: appState.dismissShareSheet) { file in
+            ShareSheet(items: [appState.fileURL(for: file)])
         }
     }
 }

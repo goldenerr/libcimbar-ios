@@ -4,6 +4,7 @@ import SwiftUI
 struct ScanView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var camera = CameraCaptureService()
+    @State private var isFlashlightPlaceholderEnabled = false
 
     var body: some View {
         NavigationStack {
@@ -12,14 +13,20 @@ struct ScanView: View {
                     .ignoresSafeArea()
 
                 VStack(spacing: 16) {
+                    topControls
                     Spacer()
-
-                    statusView
+                    statusPanel
                 }
                 .padding()
             }
             .background(Color.black)
             .navigationTitle("Scan")
+        }
+        .sheet(item: $appState.latestReceivedFile, onDismiss: appState.dismissLatestReceivedFile) { file in
+            successSheet(for: file)
+        }
+        .sheet(item: $appState.shareSheetFile, onDismiss: appState.dismissShareSheet) { file in
+            ShareSheet(items: [appState.fileURL(for: file)])
         }
         .onAppear {
             appState.connect(camera: camera)
@@ -31,36 +38,34 @@ struct ScanView: View {
     }
 
     @ViewBuilder
-    private var statusView: some View {
-        let scanState = appState.decoderBridge.scanState
-
+    private var statusPanel: some View {
         switch camera.authorizationStatus {
         case .authorized:
-            VStack(alignment: .leading, spacing: 8) {
-                Label(
-                    camera.isRunning ? scanState.statusText : "Starting camera…",
-                    systemImage: "camera.viewfinder"
-                )
-                .font(.headline)
-
-                if scanState.isRecognizedFrame || scanState.extractedBytes > 0 {
-                    Text("Recognized: \(scanState.isRecognizedFrame ? "yes" : "no") · Bytes: \(scanState.extractedBytes)")
-                        .font(.subheadline)
+            VStack(alignment: .leading, spacing: 12) {
+                if let latestReceivedFile = appState.latestReceivedFile {
+                    successBanner(for: latestReceivedFile)
                 }
 
-                if scanState.needsSharpen {
-                    Text("Frame may need sharpening")
-                        .font(.subheadline)
-                }
+                ScanStatusView(scanState: appState.decoderBridge.scanState)
 
-                if let completedFileID = scanState.completedFileID {
-                    Text("Completed file ID: \(completedFileID)")
-                        .font(.subheadline)
+                HStack(spacing: 12) {
+                    Button {
+                        appState.resetScanningSession()
+                    } label: {
+                        Label("Reset", systemImage: "arrow.clockwise")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    NavigationLink {
+                        ReceivedFilesView()
+                    } label: {
+                        Label("Files", systemImage: "folder")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
                 }
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
         case .notDetermined:
             ProgressView("Requesting camera access…")
                 .padding()
@@ -76,6 +81,91 @@ struct ScanView: View {
         @unknown default:
             EmptyView()
         }
+    }
+
+    private var topControls: some View {
+        HStack {
+            Spacer()
+
+            Button {
+                isFlashlightPlaceholderEnabled.toggle()
+            } label: {
+                Label(
+                    isFlashlightPlaceholderEnabled ? "Torch Soon" : "Flashlight",
+                    systemImage: isFlashlightPlaceholderEnabled ? "flashlight.on.fill" : "flashlight.off.fill"
+                )
+            }
+            .buttonStyle(.bordered)
+            .tint(.white)
+            .foregroundStyle(.white)
+            .background(.ultraThinMaterial, in: Capsule())
+            .accessibilityHint("Placeholder toggle until torch controls are wired up.")
+        }
+    }
+
+    private func successBanner(for file: ReceivedFile) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .font(.title3)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Received \(file.filename)")
+                    .font(.headline)
+                Text(file.formattedSize)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button("Share") {
+                appState.presentShareSheet(for: file)
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func successSheet(for file: ReceivedFile) -> some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 60))
+                    .foregroundStyle(.green)
+
+                Text("Transfer Complete")
+                    .font(.title2.weight(.semibold))
+
+                VStack(spacing: 6) {
+                    Text(file.filename)
+                        .font(.headline)
+                    Text(file.formattedSize)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button {
+                    appState.dismissLatestReceivedFile()
+                    appState.presentShareSheet(for: file)
+                } label: {
+                    Label("Share File", systemImage: "square.and.arrow.up")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button("Keep Scanning") {
+                    appState.dismissLatestReceivedFile()
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Success")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .presentationDetents([.medium])
     }
 }
 

@@ -1,10 +1,12 @@
-import SwiftUI
 import Combine
 import Foundation
+import SwiftUI
 
 @MainActor
 final class AppState: ObservableObject {
     @Published var receivedFiles: [ReceivedFile] = []
+    @Published var latestReceivedFile: ReceivedFile?
+    @Published var shareSheetFile: ReceivedFile?
 
     let store: ReceivedFilesStore
     let decoderBridge: CimbarDecoderBridgeService
@@ -38,10 +40,32 @@ final class AppState: ObservableObject {
         }
     }
 
+    func resetScanningSession() {
+        decoderBridge.reset()
+        latestReceivedFile = nil
+    }
+
+    func presentShareSheet(for file: ReceivedFile) {
+        shareSheetFile = file
+    }
+
+    func dismissShareSheet() {
+        shareSheetFile = nil
+    }
+
+    func dismissLatestReceivedFile() {
+        latestReceivedFile = nil
+    }
+
+    func fileURL(for file: ReceivedFile) -> URL {
+        store.fileURL(for: file)
+    }
+
     private func persistCompletedFile(filename: String, data: Data) {
         do {
-            _ = try store.saveCompletedFile(filename: filename, data: data)
+            let file = try store.saveCompletedFile(filename: filename, data: data)
             receivedFiles = store.loadReceivedFiles()
+            latestReceivedFile = file
         } catch {
             return
         }
