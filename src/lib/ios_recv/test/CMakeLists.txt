@@ -19,6 +19,8 @@ target_link_libraries(ios_recv_test
     cimb_translator
     extractor
     fountain
+    correct_static
+    wirehair
     zstd
     ${OPENCV_LIBS}
 )
