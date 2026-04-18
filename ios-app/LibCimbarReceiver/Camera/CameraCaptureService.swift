@@ -15,7 +15,7 @@ final class CameraCaptureService: NSObject, ObservableObject {
     private var decodeInFlight = false
     private var pendingSampleBuffer: CMSampleBuffer?
 
-    var onSampleBuffer: ((CMSampleBuffer) -> Void)?
+    var onSampleBuffer: ((CMSampleBuffer) -> ScanSnapshot?)?
 
     func start() {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
@@ -122,7 +122,7 @@ final class CameraCaptureService: NSObject, ObservableObject {
     private func dispatchToDecode(_ sampleBuffer: CMSampleBuffer) {
         let callback = onSampleBuffer
         decodeQueue.async { [weak self] in
-            callback?(sampleBuffer)
+            _ = callback?(sampleBuffer)
             self?.captureQueue.async {
                 guard let self else { return }
                 if let pending = self.pendingSampleBuffer {
