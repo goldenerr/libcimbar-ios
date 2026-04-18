@@ -3,6 +3,10 @@
 #include "TestHelpers.h"
 #include "ios_recv/CimbarReceiveSession.h"
 
+extern "C" {
+#include "ios_recv/cimbar_ios_recv_c.h"
+}
+
 TEST_CASE("CimbarReceiveSession/defaultMode", "[unit]") {
     cimbar::ios_recv::CimbarReceiveSession session;
     assertEquals(68, session.mode_value());
@@ -16,6 +20,13 @@ TEST_CASE("CimbarReceiveSession/resetClearsProgress", "[unit]") {
     assertEquals(4, session.mode_value());
     assertEquals(static_cast<int>(cimbar::ios_recv::SessionPhase::Idle),
                  static_cast<int>(session.progress().phase));
+}
+
+TEST_CASE("cimbar_ios_recv_c/createResetDestroy", "[unit]") {
+    auto* handle = cimbar_ios_recv_create();
+    assertFalse(handle == nullptr);
+    assertEquals(0, cimbar_ios_recv_reset(handle));
+    cimbar_ios_recv_destroy(handle);
 }
 
 TEST_CASE("CimbarReceiveSession/processFrameExtractsChunks", "[unit]") {

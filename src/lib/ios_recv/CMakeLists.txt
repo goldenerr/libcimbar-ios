@@ -4,6 +4,8 @@ set(SOURCES
     CimbarReceiveTypes.h
     CimbarReceiveSession.h
     CimbarReceiveSession.cpp
+    cimbar_ios_recv_c.h
+    cimbar_ios_recv_c.cpp
 )
 
 add_library(ios_recv STATIC ${SOURCES})
