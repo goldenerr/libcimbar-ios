@@ -1,0 +1,22 @@
+name: LibCimbarReceiver
+options:
+  bundleIdPrefix: org.example
+settings:
+  base:
+    SWIFT_VERSION: 5.10
+    IPHONEOS_DEPLOYMENT_TARGET: 16.0
+targets:
+  LibCimbarReceiver:
+    type: application
+    platform: iOS
+    sources:
+      - path: LibCimbarReceiver
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.example.LibCimbarReceiver
+        INFOPLIST_FILE: LibCimbarReceiver/Resources/Info.plist
+    info:
+      path: LibCimbarReceiver/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: LibCimbarReceiver
+        NSCameraUsageDescription: Scan animated cimbar codes to receive files.
