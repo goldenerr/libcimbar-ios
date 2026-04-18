@@ -1,10 +1,15 @@
 /* This code is subject to the terms of the Mozilla Public License, v.2.0. http://mozilla.org/MPL/2.0/. */
 #include "CimbarReceiveSession.h"
 
+#include "compression/zstd_header_check.h"
 #include "encoder/escrow_buffer_writer.h"
 #include "cimb_translator/Config.h"
+#include "fountain/FountainMetadata.h"
+#include "util/File.h"
 
 #include <opencv2/opencv.hpp>
+
+#include <iterator>
 
 namespace cimbar::ios_recv {
 
@@ -77,10 +82,20 @@ int CimbarReceiveSession::mode_value() const {
 
 void CimbarReceiveSession::reset() {
     _progress = {};
+    _sink.reset();
+    _reassembled.clear();
+    _decompressor.reset();
+    _completed_files.clear();
 }
 
 const ProgressSnapshot& CimbarReceiveSession::progress() const {
     return _progress;
+}
+
+std::vector<CompletedFile> CimbarReceiveSession::take_completed_files() {
+    std::vector<CompletedFile> completed_files = std::move(_completed_files);
+    _completed_files.clear();
+    return completed_files;
 }
 
 ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdata,
@@ -120,8 +135,36 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
     _progress.extracted_bytes = static_cast<int>(ebw.buffers_in_use() * fountain_chunk_size());
 
     if (_progress.extracted_bytes > 0) {
-        _progress.phase = SessionPhase::Decoding;
-        _progress.status_message = "decoded frame chunks";
+        if (!_sink) {
+            _sink = std::make_shared<fountain_decoder_sink>(fountain_chunk_size());
+        }
+
+        int64_t completed_file_id = 0;
+        unsigned chunk_size = fountain_chunk_size();
+        for (int offset = 0; offset < _progress.extracted_bytes && completed_file_id == 0; offset += static_cast<int>(chunk_size)) {
+            completed_file_id = _sink->decode_frame(reinterpret_cast<const char*>(_chunk_buffer.data() + offset), chunk_size);
+        }
+
+        _progress.fountain_progress.clear();
+        for (double value : _sink->get_progress()) {
+            _progress.fountain_progress.push_back(static_cast<int>(value * 100));
+        }
+
+        if (completed_file_id > 0) {
+            CompletedFile completed_file;
+            if (recover_completed_file(static_cast<uint32_t>(completed_file_id), completed_file)) {
+                _completed_files.push_back(std::move(completed_file));
+                _progress.phase = SessionPhase::Completed;
+                _progress.completed_file_id = completed_file_id;
+                _progress.status_message = "completed file";
+            } else {
+                _progress.phase = SessionPhase::Error;
+                _progress.status_message = "failed to recover completed file";
+            }
+        } else {
+            _progress.phase = SessionPhase::Reconstructing;
+            _progress.status_message = "decoded frame chunks";
+        }
     } else {
         _progress.phase = SessionPhase::Detecting;
         _progress.status_message = "recognized frame without chunks";
@@ -135,6 +178,41 @@ void CimbarReceiveSession::refresh_decode_state() {
     _extractor = Extractor();
     _decoder = Decoder();
     _chunk_buffer.assign(fountain_chunks_per_frame() * fountain_chunk_size(), 0);
+}
+
+bool CimbarReceiveSession::recover_completed_file(uint32_t file_id, CompletedFile& completed_file) {
+    if (!_sink || _sink->is_done(file_id)) {
+        return false;
+    }
+
+    _reassembled.resize(FountainMetadata(file_id).file_size());
+    if (_reassembled.empty() || !_sink->recover(file_id, _reassembled.data(), _reassembled.size())) {
+        return false;
+    }
+
+    completed_file.file_id = file_id;
+    completed_file.compressed_bytes = _reassembled;
+    completed_file.filename = File::basename(cimbar::zstd_header_check::get_filename(_reassembled.data(), _reassembled.size()));
+    if (completed_file.filename.empty()) {
+        FountainMetadata metadata(file_id);
+        completed_file.filename = std::to_string(metadata.encode_id()) + "." + std::to_string(metadata.file_size());
+    }
+
+    _decompressor = std::make_unique<cimbar::zstd_decompressor<std::stringstream>>();
+    if (!_decompressor || !_decompressor->init_decompress(reinterpret_cast<const char*>(_reassembled.data()), _reassembled.size())) {
+        return false;
+    }
+
+    while (_decompressor->good()) {
+        _decompressor->str(std::string());
+        if (!_decompressor->write_once()) {
+            break;
+        }
+        std::string chunk = _decompressor->str();
+        completed_file.decompressed_bytes.insert(completed_file.decompressed_bytes.end(), chunk.begin(), chunk.end());
+    }
+
+    return !completed_file.decompressed_bytes.empty();
 }
 
 } // namespace cimbar::ios_recv

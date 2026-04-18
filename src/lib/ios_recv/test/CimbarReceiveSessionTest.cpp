@@ -27,3 +27,20 @@ TEST_CASE("CimbarReceiveSession/processFrameExtractsChunks", "[unit]") {
     assertTrue(progress.recognized_frame);
     assertTrue(progress.extracted_bytes > 0);
 }
+
+TEST_CASE("CimbarReceiveSession/processFrameCompletesFile", "[unit]") {
+    cimbar::ios_recv::CimbarReceiveSession session;
+    cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+
+    cimbar::ios_recv::ProgressSnapshot progress = session.process_frame(img.data, img.cols, img.rows, 3, static_cast<unsigned>(img.step));
+    std::vector<cimbar::ios_recv::CompletedFile> completed = session.take_completed_files();
+
+    assertTrue(progress.recognized_frame);
+    assertTrue(progress.extracted_bytes > 0);
+    assertTrue(progress.completed_file_id > 0);
+    assertEquals(static_cast<int>(cimbar::ios_recv::SessionPhase::Completed),
+                 static_cast<int>(progress.phase));
+    assertEquals(1, completed.size());
+    assertTrue(!completed.front().filename.empty());
+    assertTrue(completed.front().decompressed_bytes.size() > 0);
+}

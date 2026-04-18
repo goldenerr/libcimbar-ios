@@ -33,6 +33,7 @@ struct CompletedFile {
     uint32_t file_id = 0;
     std::string filename;
     std::vector<unsigned char> compressed_bytes;
+    std::vector<unsigned char> decompressed_bytes;
 };
 
 } // namespace cimbar::ios_recv
