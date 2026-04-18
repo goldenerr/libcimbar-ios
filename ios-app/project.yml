@@ -11,10 +11,14 @@ targets:
     platform: iOS
     sources:
       - path: LibCimbarReceiver
+      - path: ../src/lib/ios_recv/cimbar_ios_recv_c.h
+        type: file
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.example.LibCimbarReceiver
         INFOPLIST_FILE: LibCimbarReceiver/Resources/Info.plist
+        HEADER_SEARCH_PATHS:
+          - $(SRCROOT)/../src/lib/ios_recv
     info:
       path: LibCimbarReceiver/Resources/Info.plist
       properties:
