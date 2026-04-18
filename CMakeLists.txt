@@ -69,6 +69,7 @@ set (PROJECTS
 	src/lib/fountain
 	src/lib/gui
 	src/lib/image_hash
+	src/lib/ios_recv
 	src/lib/serialize
 	src/lib/util
 
