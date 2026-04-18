@@ -1,11 +1,6 @@
 /* This code is subject to the terms of the Mozilla Public License, v.2.0. http://mozilla.org/MPL/2.0/. */
-#include "cimbar_js/cimbar_recv_js.h"
-
-#include "cimb_translator/Config.h"
-#include "compression/zstd_decompressor.h"
-#include "extractor/Extractor.h"
-#include "fountain/fountain_decoder_sink.h"
 #include "gui/window_glfw.h"
+#include "ios_recv/CimbarReceiveSession.h"
 
 #include "cxxopts/cxxopts.hpp"
 #include "serialize/format.h"
@@ -106,11 +101,8 @@ int main(int argc, char** argv)
 	window.auto_scale_to_window();
 
 	// allocate buffers, etc
-	cimbard_configure_decode(config_mode);
-	unsigned chunkSize = cimbar::Config::fountain_chunk_size();
-
-	std::vector<unsigned char> bufspace;
-	bufspace.resize(cimbard_get_bufsize(), 0);
+	cimbar::ios_recv::CimbarReceiveSession session;
+	session.configure_mode(config_mode);
 
 	cv::Mat mat;
 
@@ -137,45 +129,21 @@ int main(int argc, char** argv)
 		// draw some stats on mat?
 		window.show(mat, 0);
 
-		// extract, decode, etc
-		int bytes = cimbard_scan_extract_decode(img.data, img.cols, img.rows, 3, bufspace.data(), bufspace.size());
-		if (bytes <= 0)
-			continue;
+		// route frame decode/reconstruction through the reusable session abstraction
+		auto snapshot = session.process_frame(img.data,
+		                                    static_cast<unsigned>(img.cols),
+		                                    static_cast<unsigned>(img.rows),
+		                                    img.channels(),
+		                                    static_cast<unsigned>(img.step));
+		(void)snapshot;
 
-		if (bytes % chunkSize != 0)
+		for (auto& file : session.take_completed_files())
 		{
-			std::cerr << "WEIRD SEEMS BAD? " << count << std::endl;
-			continue;
-		}
+			std::cerr << "Saving file " << file.filename << " of (decompressed) size " << file.decompressed_bytes.size() << std::endl;
 
-		int64_t res = cimbard_fountain_decode(bufspace.data(), bytes);
-		if (res > 0)
-		{
-			// attempt save
-			uint32_t fileId = res;
-
-			int size = cimbard_get_filesize(fileId);
-
-			std::string filename;
-			filename.resize(255, '\0');
-			int fnsize = cimbard_get_filename(fileId, filename.data(), filename.size());
-			if (fnsize > 0)
-				filename.resize(fnsize);
-			else // fallback
-				filename = fmt::format("0.{}", size);
-			std::cerr << "Saving file " << filename << " of (compressed) size " << size << std::endl;
-
-			std::string file_path = fmt::format("{}/{}", outpath, filename);
+			std::string file_path = fmt::format("{}/{}", outpath, file.filename);
 			std::ofstream outs(file_path, std::ios::binary);
-
-			std::vector<unsigned char> data;
-			data.resize(cimbard_get_decompress_bufsize());
-
-			int res = 1;
-			while ((res = cimbard_decompress_read(fileId, data.data(), data.size())) > 0)
-				outs.write(reinterpret_cast<const char*>(data.data()), res);
-			if (res < 0)
-				std::cerr << "failed cimbard_decompress_read " << res << std::endl;
+			outs.write(reinterpret_cast<const char*>(file.decompressed_bytes.data()), file.decompressed_bytes.size());
 		}
 	}
 

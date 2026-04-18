@@ -13,8 +13,7 @@ add_executable (
 
 target_link_libraries(cimbar_recv2
 
-	cimbar_js
-	extractor
+	ios_recv
 
 	GL
 	glfw
