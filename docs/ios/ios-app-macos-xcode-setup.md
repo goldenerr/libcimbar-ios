@@ -145,8 +145,23 @@ At the time of writing:
 - the flashlight UI control is currently a placeholder and does not yet toggle the device torch
 - if you edit `project.yml`, you must rerun `xcodegen generate`
 - desktop Linux build issues involving `GLES3/gl3.h` are unrelated to iOS Xcode generation on macOS
+- the decoder path depends on **OpenCV**; on macOS/iOS you will need an iOS-compatible OpenCV SDK/framework, not just a Linux package install
 
 ## 11. Troubleshooting
+
+### Xcode now fails on `opencv2/opencv.hpp` or OpenCV linker errors
+
+That means the project has advanced past the earlier bridge/link issues and is now compiling the real decoder stack.
+
+You need an **iOS-compatible OpenCV SDK** (for example an `opencv2.xcframework` or equivalent framework package) added to the Xcode project. A Homebrew/macOS OpenCV install is not sufficient for an iPhone target.
+
+Typical fix direction:
+
+1. download/build an iOS OpenCV SDK
+2. add the framework/xcframework to the Xcode project
+3. link it to the `LibCimbarReceiver` target
+4. clean and rebuild
+
 
 ### `xcodegen: command not found`
 

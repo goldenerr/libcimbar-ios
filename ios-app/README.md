@@ -54,6 +54,7 @@ Current default values in `project.yml`:
 - Edit `project.yml` and source files, then regenerate the project.
 - A real device is strongly recommended because the app depends on camera input.
 - The flashlight button in the UI is currently a placeholder toggle; torch control is not yet wired up.
+- The receive pipeline depends on **OpenCV**. After the recent XcodeGen fixes, the next likely blocker on macOS is adding an iOS-compatible OpenCV SDK/framework to the Xcode project.
 
 ## Full setup guide
 
