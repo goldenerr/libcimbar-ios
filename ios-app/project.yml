@@ -19,6 +19,8 @@ targets:
         INFOPLIST_FILE: LibCimbarReceiver/Resources/Info.plist
         HEADER_SEARCH_PATHS:
           - $(SRCROOT)/../src/lib/ios_recv
+        SWIFT_OBJC_BRIDGING_HEADER: LibCimbarReceiver/Bridge/LibCimbarReceiver-Bridging-Header.h
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     info:
       path: LibCimbarReceiver/Resources/Info.plist
       properties:
