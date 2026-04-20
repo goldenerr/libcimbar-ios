@@ -43,6 +43,9 @@ targets:
         excludes:
           - CMakeLists.txt
           - huf_decompress_amd64.S
+    dependencies:
+      - framework: Vendor/OpenCV/opencv2.framework
+        embed: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.example.LibCimbarReceiver
