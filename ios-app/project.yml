@@ -31,6 +31,10 @@ targets:
       - path: ../src/third_party_lib/libcorrect/src/reed-solomon
         excludes:
           - CMakeLists.txt
+      - path: ../src/third_party_lib/libcorrect/src/convolutional
+        excludes:
+          - CMakeLists.txt
+          - sse/**
       - path: ../src/third_party_lib/libcorrect/src/fec_shim.c
       - path: ../src/third_party_lib/zstd/common
         excludes:
