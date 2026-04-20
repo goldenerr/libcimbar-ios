@@ -56,6 +56,10 @@ struct ScanStatusView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(borderColor, lineWidth: 1)
+        )
     }
 
     private var detailText: String {
@@ -65,7 +69,7 @@ struct ScanStatusView: View {
         case .searching:
             return "Looking for a recognizable frame."
         case .detecting:
-            return scanState.isRecognizedFrame ? "Frame locked. Waiting for payload data." : "Align the code fully in view."
+            return scanState.isRecognizedFrame ? "已锁定码框，但这一帧还没读出有效数据。" : "Align the code fully in view."
         case .decoding:
             if scanState.hasChunkProgress {
                 let remainingText = scanState.remainingChunks.map { "，还差 \($0) 个码" } ?? ""
@@ -94,6 +98,21 @@ struct ScanStatusView: View {
             return "checkmark.circle.fill"
         case .error:
             return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var borderColor: Color {
+        switch scanState.phase {
+        case .completed:
+            return .green.opacity(0.45)
+        case .error:
+            return .red.opacity(0.55)
+        case .detecting:
+            return .yellow.opacity(0.4)
+        case .decoding:
+            return .accentColor.opacity(0.4)
+        case .idle, .searching:
+            return .white.opacity(0.18)
         }
     }
 }
