@@ -30,8 +30,14 @@ protected:
 template <typename MAT>
 inline int Extractor::extract(const MAT& img, MAT& out)
 {
-	Scanner scanner(img);
-	std::vector<Anchor> points = scanner.scan();
+	auto scan_points = [&img] (bool fast) {
+		Scanner scanner(img, fast);
+		return scanner.scan();
+	};
+
+	std::vector<Anchor> points = scan_points(true);
+	if (points.size() < 4)
+		points = scan_points(false);
 	if (points.size() < 4)
 		return FAILURE;
 

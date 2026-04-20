@@ -48,3 +48,18 @@ TEST_CASE( "ExtractorTest/testExtractUpscale", "[unit]" )
 	assertEquals( 0x29c64eaca3356394, image_hash::average_hash(out) );
 }
 
+TEST_CASE( "ExtractorTest/testExtractSoftenedDisplayFrameFallsBackToAdaptiveScan", "[unit]" )
+{
+	cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+	cv::Mat softened;
+	cv::resize(img, softened, cv::Size(), 0.84, 0.84, cv::INTER_LINEAR);
+	cv::resize(softened, softened, img.size(), 0, 0, cv::INTER_LINEAR);
+	cv::GaussianBlur(softened, softened, cv::Size(9, 9), 0);
+
+	cv::Mat out;
+	Extractor ext(0, {1024, 1024}, 30);
+	int result = ext.extract(softened, out);
+	assertEquals( Extractor::NEEDS_SHARPEN, result );
+	assertFalse( out.empty() );
+}
+
