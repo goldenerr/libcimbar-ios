@@ -15,20 +15,30 @@ targets:
       - path: ../src/lib/ios_recv
         excludes:
           - test/**
+          - CMakeLists.txt
       - path: ../src/lib/extractor
         excludes:
           - test/**
+          - CMakeLists.txt
       - path: ../src/lib/cimb_translator
         excludes:
           - test/**
+          - CMakeLists.txt
       - path: ../src/third_party_lib/wirehair/wirehair.cpp
       - path: ../src/third_party_lib/wirehair/gf256.cpp
       - path: ../src/third_party_lib/wirehair/WirehairCodec.cpp
       - path: ../src/third_party_lib/wirehair/WirehairTools.cpp
       - path: ../src/third_party_lib/libcorrect/src/reed-solomon
+        excludes:
+          - CMakeLists.txt
       - path: ../src/third_party_lib/libcorrect/src/fec_shim.c
       - path: ../src/third_party_lib/zstd/common
+        excludes:
+          - CMakeLists.txt
       - path: ../src/third_party_lib/zstd/decompress
+        excludes:
+          - CMakeLists.txt
+          - huf_decompress_amd64.S
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.example.LibCimbarReceiver
