@@ -228,6 +228,45 @@ TEST_CASE( "FountainStreamTest/testDecode", "[unit]" )
 	assertTrue( fes->good() );
 }
 
+TEST_CASE( "FountainStreamTest/testDecode_IgnoresDuplicateBlocksAndAcceptsLaterBlocks", "[unit]" )
+{
+	stringstream input;
+	for (int i = 0; i < 1000; ++i)
+		input << "0123456789";
+
+	fountain_encoder_stream::ptr fes = fountain_encoder_stream::create(input, 830);
+	assertTrue( fes->good() );
+
+	fountain_decoder_stream fds(input.str().size(), 830);
+	std::array<char, 830> firstBlock;
+	std::array<char, 830> nextBlock;
+
+	unsigned res = fes->readsome(firstBlock.data(), firstBlock.size());
+	assertEquals( res, firstBlock.size() );
+	assertFalse( fds.write(firstBlock.data(), firstBlock.size()) );
+	assertEquals( 1, fds.progress() );
+
+	assertFalse( fds.write(firstBlock.data(), firstBlock.size()) );
+	assertEquals( 1, fds.progress() );
+
+	bool decoded = false;
+	for (int i = 0; i < 1000; ++i)
+	{
+		res = fes->readsome(nextBlock.data(), nextBlock.size());
+		assertEquals( res, nextBlock.size() );
+		decoded = fds.write(nextBlock.data(), nextBlock.size());
+		if (decoded)
+			break;
+	}
+
+	assertTrue( decoded );
+	assertTrue( fds.progress() >= fds.blocks_required() );
+
+	auto reassembled = fds.recover();
+	assertTrue( reassembled );
+	assertEquals( input.str(), string(reassembled->begin(), reassembled->end()) );
+}
+
 TEST_CASE( "FountainStreamTest/testDecode_BigPackets", "[unit]" )
 {
 	stringstream input;

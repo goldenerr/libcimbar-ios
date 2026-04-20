@@ -35,6 +35,10 @@ struct ScanStatusView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+            } else if scanState.hasScannedChunks {
+                Label("已扫 \(scanState.normalizedScannedChunks) 个码", systemImage: "viewfinder")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             if scanState.needsSharpen {
@@ -66,6 +70,9 @@ struct ScanStatusView: View {
             if scanState.hasChunkProgress {
                 let remainingText = scanState.remainingChunks.map { "，还差 \($0) 个码" } ?? ""
                 return "已扫描 \(scanState.normalizedScannedChunks)/\(scanState.totalChunks) 个码（\(scanState.progressPercent)%）\(remainingText)，累计解出 \(scanState.extractedBytes) bytes。"
+            }
+            if scanState.hasScannedChunks {
+                return "已扫描 \(scanState.normalizedScannedChunks) 个码，累计解出 \(scanState.extractedBytes) bytes。"
             }
             return "Decoded \(scanState.extractedBytes) bytes so far."
         case .completed:

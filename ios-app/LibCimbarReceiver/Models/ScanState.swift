@@ -50,6 +50,10 @@ struct ScanState: Equatable {
         totalChunks > 0
     }
 
+    var hasScannedChunks: Bool {
+        normalizedScannedChunks > 0
+    }
+
     var normalizedScannedChunks: Int {
         guard totalChunks > 0 else { return max(0, scannedChunks) }
         return min(max(0, scannedChunks), totalChunks)
