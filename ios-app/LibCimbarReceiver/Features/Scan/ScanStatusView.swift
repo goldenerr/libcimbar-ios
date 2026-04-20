@@ -35,10 +35,14 @@ struct ScanStatusView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
-            } else if scanState.hasScannedChunks {
-                Label("已扫 \(scanState.normalizedScannedChunks) 个码", systemImage: "viewfinder")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            } else {
+                HStack {
+                    Label("已扫 \(scanState.normalizedScannedChunks) 个码", systemImage: "viewfinder")
+                    Spacer()
+                    Text("总数 未知")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
 
             if scanState.needsSharpen {
