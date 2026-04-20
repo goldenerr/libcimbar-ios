@@ -25,6 +25,8 @@ void fill_progress(const cimbar::ios_recv::ProgressSnapshot& progress, cimbar_io
     out_progress->needs_sharpen = progress.needs_sharpen ? 1 : 0;
     out_progress->extracted_bytes = progress.extracted_bytes;
     out_progress->completed_file_id = progress.completed_file_id;
+    out_progress->scanned_chunks = progress.scanned_chunks;
+    out_progress->total_chunks = progress.total_chunks;
 }
 
 } // namespace

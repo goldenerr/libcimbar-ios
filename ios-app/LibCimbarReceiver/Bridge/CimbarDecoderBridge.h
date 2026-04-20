@@ -20,12 +20,16 @@ typedef NS_ENUM(NSInteger, CimbarDecoderBridgePhase) {
 @property (nonatomic, readonly) BOOL needsSharpen;
 @property (nonatomic, readonly) NSInteger extractedBytes;
 @property (nonatomic, readonly) int64_t completedFileID;
+@property (nonatomic, readonly) NSInteger scannedChunks;
+@property (nonatomic, readonly) NSInteger totalChunks;
 
 - (instancetype)initWithPhase:(CimbarDecoderBridgePhase)phase
               recognizedFrame:(BOOL)recognizedFrame
                  needsSharpen:(BOOL)needsSharpen
                extractedBytes:(NSInteger)extractedBytes
-              completedFileID:(int64_t)completedFileID NS_DESIGNATED_INITIALIZER;
+              completedFileID:(int64_t)completedFileID
+                scannedChunks:(NSInteger)scannedChunks
+                  totalChunks:(NSInteger)totalChunks NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;
 

@@ -149,6 +149,8 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
         for (double value : _sink->get_progress()) {
             _progress.fountain_progress.push_back(static_cast<int>(value * 100));
         }
+        _progress.scanned_chunks = static_cast<int>(_sink->progress_blocks());
+        _progress.total_chunks = static_cast<int>(_sink->required_blocks());
 
         if (completed_file_id > 0) {
             CompletedFile completed_file;

@@ -25,6 +25,8 @@ struct ProgressSnapshot {
     bool needs_sharpen = false;
     int extracted_bytes = 0;
     int64_t completed_file_id = 0;
+    int scanned_chunks = 0;
+    int total_chunks = 0;
     std::string status_message;
     std::vector<int> fountain_progress;
 };

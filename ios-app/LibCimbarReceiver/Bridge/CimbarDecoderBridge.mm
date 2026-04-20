@@ -10,7 +10,9 @@
               recognizedFrame:(BOOL)recognizedFrame
                  needsSharpen:(BOOL)needsSharpen
                extractedBytes:(NSInteger)extractedBytes
-              completedFileID:(int64_t)completedFileID {
+              completedFileID:(int64_t)completedFileID
+                scannedChunks:(NSInteger)scannedChunks
+                  totalChunks:(NSInteger)totalChunks {
     self = [super init];
     if (self) {
         _phase = phase;
@@ -18,6 +20,8 @@
         _needsSharpen = needsSharpen;
         _extractedBytes = extractedBytes;
         _completedFileID = completedFileID;
+        _scannedChunks = scannedChunks;
+        _totalChunks = totalChunks;
     }
     return self;
 }
@@ -132,7 +136,9 @@ CimbarDecoderBridgePhase bridge_phase_for_progress(int phase) {
                                                           recognizedFrame:(progress.recognized_frame != 0)
                                                              needsSharpen:(progress.needs_sharpen != 0)
                                                            extractedBytes:progress.extracted_bytes
-                                                          completedFileID:progress.completed_file_id];
+                                                          completedFileID:progress.completed_file_id
+                                                            scannedChunks:progress.scanned_chunks
+                                                              totalChunks:progress.total_chunks];
         }
     }
 

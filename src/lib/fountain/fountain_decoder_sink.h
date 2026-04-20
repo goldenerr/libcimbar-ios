@@ -125,6 +125,22 @@ public:
 		return progress;
 	}
 
+	unsigned progress_blocks() const
+	{
+		unsigned blocks = 0;
+		for (auto&& [slot, s] : _streams)
+			blocks += s.progress();
+		return blocks;
+	}
+
+	unsigned required_blocks() const
+	{
+		unsigned blocks = 0;
+		for (auto&& [slot, s] : _streams)
+			blocks += s.blocks_required();
+		return blocks;
+	}
+
 	bool is_done(uint32_t id) const
 	{
 		return _done.find(id) != _done.end();

@@ -72,7 +72,9 @@ private extension ScanSnapshot {
             recognizedFrame: nativeSnapshot.recognizedFrame,
             needsSharpen: nativeSnapshot.needsSharpen,
             extractedBytes: nativeSnapshot.extractedBytes,
-            completedFileID: nativeSnapshot.completedFileID
+            completedFileID: nativeSnapshot.completedFileID,
+            scannedChunks: nativeSnapshot.scannedChunks,
+            totalChunks: nativeSnapshot.totalChunks
         )
     }
 }

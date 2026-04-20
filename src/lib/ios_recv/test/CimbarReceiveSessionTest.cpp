@@ -55,3 +55,14 @@ TEST_CASE("CimbarReceiveSession/processFrameCompletesFile", "[unit]") {
     assertTrue(!completed.front().filename.empty());
     assertTrue(completed.front().decompressed_bytes.size() > 0);
 }
+
+TEST_CASE("CimbarReceiveSession/processFrameReportsChunkCounts", "[unit]") {
+    cimbar::ios_recv::CimbarReceiveSession session;
+    cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+
+    cimbar::ios_recv::ProgressSnapshot progress = session.process_frame(img.data, img.cols, img.rows, 3, static_cast<unsigned>(img.step));
+
+    assertTrue(progress.total_chunks > 0);
+    assertTrue(progress.scanned_chunks > 0);
+    assertTrue(progress.scanned_chunks <= progress.total_chunks);
+}

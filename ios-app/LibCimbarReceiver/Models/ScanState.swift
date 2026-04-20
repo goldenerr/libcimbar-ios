@@ -32,6 +32,8 @@ struct ScanSnapshot: Equatable {
     let needsSharpen: Bool
     let extractedBytes: Int
     let completedFileID: Int64
+    let scannedChunks: Int
+    let totalChunks: Int
 }
 
 struct ScanState: Equatable {
@@ -40,6 +42,8 @@ struct ScanState: Equatable {
     var needsSharpen = false
     var extractedBytes = 0
     var completedFileID: Int64?
+    var scannedChunks = 0
+    var totalChunks = 0
     var statusText = ScanPhase.idle.statusText
 
     init() {}
@@ -50,6 +54,8 @@ struct ScanState: Equatable {
         needsSharpen = snapshot.needsSharpen
         extractedBytes = snapshot.extractedBytes
         completedFileID = snapshot.completedFileID > 0 ? snapshot.completedFileID : nil
+        scannedChunks = snapshot.scannedChunks
+        totalChunks = snapshot.totalChunks
         statusText = snapshot.phase.statusText
     }
 }

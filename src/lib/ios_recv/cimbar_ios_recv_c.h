@@ -16,6 +16,8 @@ typedef struct {
     int needs_sharpen;
     int extracted_bytes;
     int64_t completed_file_id;
+    int scanned_chunks;
+    int total_chunks;
 } cimbar_ios_recv_progress;
 
 typedef struct {
