@@ -14,10 +14,10 @@ struct ReceivedFilesView: View {
         NavigationStack {
             Group {
                 if appState.receivedFiles.isEmpty {
-                    ContentUnavailableView(
-                        "No Files Yet",
+                    UnavailableStateView(
+                        title: "No Files Yet",
                         systemImage: "doc.text.magnifyingglass",
-                        description: Text("Completed transfers will appear here.")
+                        description: "Completed transfers will appear here."
                     )
                 } else {
                     List(appState.receivedFiles) { file in

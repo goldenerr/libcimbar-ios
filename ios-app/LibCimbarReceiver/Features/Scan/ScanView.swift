@@ -72,12 +72,11 @@ struct ScanView: View {
                 .frame(maxWidth: .infinity)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
         case .denied, .restricted:
-            ContentUnavailableView(
-                "Camera Unavailable",
+            UnavailableStateView(
+                title: "Camera Unavailable",
                 systemImage: "camera.fill.badge.xmark",
-                description: Text("Enable camera access in Settings to scan cimbar codes.")
+                description: "Enable camera access in Settings to scan cimbar codes."
             )
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
         @unknown default:
             EmptyView()
         }
