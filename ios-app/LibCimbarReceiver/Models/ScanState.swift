@@ -46,6 +46,29 @@ struct ScanState: Equatable {
     var totalChunks = 0
     var statusText = ScanPhase.idle.statusText
 
+    var hasChunkProgress: Bool {
+        totalChunks > 0
+    }
+
+    var normalizedScannedChunks: Int {
+        guard totalChunks > 0 else { return max(0, scannedChunks) }
+        return min(max(0, scannedChunks), totalChunks)
+    }
+
+    var remainingChunks: Int? {
+        guard totalChunks > 0 else { return nil }
+        return max(0, totalChunks - normalizedScannedChunks)
+    }
+
+    var progressFraction: Double {
+        guard totalChunks > 0 else { return 0 }
+        return Double(normalizedScannedChunks) / Double(totalChunks)
+    }
+
+    var progressPercent: Int {
+        Int((progressFraction * 100).rounded())
+    }
+
     init() {}
 
     init(snapshot: ScanSnapshot) {

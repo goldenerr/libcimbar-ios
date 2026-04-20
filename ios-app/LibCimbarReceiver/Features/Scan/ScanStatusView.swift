@@ -12,13 +12,23 @@ struct ScanStatusView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            if scanState.totalChunks > 0 {
+            if scanState.hasChunkProgress {
                 VStack(alignment: .leading, spacing: 8) {
-                    ProgressView(value: progressValue)
+                    HStack(alignment: .firstTextBaseline) {
+                        Label("进度 \(scanState.progressPercent)%", systemImage: "chart.bar.fill")
+                        Spacer()
+                        if let remainingChunks = scanState.remainingChunks {
+                            Text("还差 \(remainingChunks) 码")
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    ProgressView(value: scanState.progressFraction)
                         .tint(.accentColor)
 
                     HStack {
-                        Label("已扫 \(scanState.scannedChunks)", systemImage: "viewfinder")
+                        Label("已扫 \(scanState.normalizedScannedChunks)", systemImage: "viewfinder")
                         Spacer()
                         Label("总数 \(scanState.totalChunks)", systemImage: "square.grid.3x3")
                     }
@@ -53,8 +63,9 @@ struct ScanStatusView: View {
         case .detecting:
             return scanState.isRecognizedFrame ? "Frame locked. Waiting for payload data." : "Align the code fully in view."
         case .decoding:
-            if scanState.totalChunks > 0 {
-                return "已扫描 \(scanState.scannedChunks)/\(scanState.totalChunks) 个码，累计解出 \(scanState.extractedBytes) bytes。"
+            if scanState.hasChunkProgress {
+                let remainingText = scanState.remainingChunks.map { "，还差 \($0) 个码" } ?? ""
+                return "已扫描 \(scanState.normalizedScannedChunks)/\(scanState.totalChunks) 个码（\(scanState.progressPercent)%）\(remainingText)，累计解出 \(scanState.extractedBytes) bytes。"
             }
             return "Decoded \(scanState.extractedBytes) bytes so far."
         case .completed:
@@ -77,11 +88,6 @@ struct ScanStatusView: View {
         case .error:
             return "exclamationmark.triangle.fill"
         }
-    }
-
-    private var progressValue: Double {
-        guard scanState.totalChunks > 0 else { return 0 }
-        return min(1.0, max(0.0, Double(scanState.scannedChunks) / Double(scanState.totalChunks)))
     }
 }
 
