@@ -5,20 +5,40 @@ settings:
   base:
     SWIFT_VERSION: 5.10
     IPHONEOS_DEPLOYMENT_TARGET: 16.0
+    CLANG_CXX_LANGUAGE_STANDARD: c++17
 targets:
   LibCimbarReceiver:
     type: application
     platform: iOS
     sources:
       - path: LibCimbarReceiver
-      - path: ../src/lib/ios_recv/cimbar_ios_recv_c.h
-        type: file
+      - path: ../src/lib/ios_recv
+        excludes:
+          - test/**
+      - path: ../src/lib/extractor
+        excludes:
+          - test/**
+      - path: ../src/lib/cimb_translator
+        excludes:
+          - test/**
+      - path: ../src/third_party_lib/wirehair/wirehair.cpp
+      - path: ../src/third_party_lib/wirehair/gf256.cpp
+      - path: ../src/third_party_lib/wirehair/WirehairCodec.cpp
+      - path: ../src/third_party_lib/wirehair/WirehairTools.cpp
+      - path: ../src/third_party_lib/libcorrect/src/reed-solomon
+      - path: ../src/third_party_lib/libcorrect/src/fec_shim.c
+      - path: ../src/third_party_lib/zstd/common
+      - path: ../src/third_party_lib/zstd/decompress
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.example.LibCimbarReceiver
         INFOPLIST_FILE: LibCimbarReceiver/Resources/Info.plist
         HEADER_SEARCH_PATHS:
-          - $(SRCROOT)/../src/lib/ios_recv
+          - $(SRCROOT)/../src/lib
+          - $(SRCROOT)/../src/third_party_lib
+          - $(SRCROOT)/../src/third_party_lib/wirehair/include
+          - $(SRCROOT)/../src/third_party_lib/libcorrect/include
+          - $(SRCROOT)/../src/third_party_lib/zstd
         SWIFT_OBJC_BRIDGING_HEADER: LibCimbarReceiver/Bridge/LibCimbarReceiver-Bridging-Header.h
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     info:
