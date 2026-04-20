@@ -203,14 +203,14 @@ static bool gf256_self_test()
 # if defined(IOS) && (defined(__ARM_NEON) || defined(__ARM_NEON__))
 // Requires iPhone 5S or newer
 static const bool CpuHasNeon = true;
-static const bool CpuHasNeon64 = true;
+[[maybe_unused]] static const bool CpuHasNeon64 = true;
 # else // ANDROID or LINUX_ARM
 #  if defined(__aarch64__)
 static bool CpuHasNeon = true;      // if AARCH64, then we have NEON for sure...
-static bool CpuHasNeon64 = true;    // And we have ASIMD
+[[maybe_unused]] static bool CpuHasNeon64 = true;    // And we have ASIMD
 #  else
 static bool CpuHasNeon = false;     // if not, then we have to check at runtime.
-static bool CpuHasNeon64 = false;   // And we don't have ASIMD
+[[maybe_unused]] static bool CpuHasNeon64 = false;   // And we don't have ASIMD
 #  endif
 # endif
 #endif
@@ -425,10 +425,12 @@ static void gf256_muldiv_init()
         const uint8_t log_yn = 255 - log_y;
 
         // Next subtable
-        m += 256, d += 256;
+        m += 256;
+        d += 256;
 
         // Unroll x = 0
-        m[0] = 0, d[0] = 0;
+        m[0] = 0;
+        d[0] = 0;
 
         // Calculate x * y, x / y
         for (int x = 1; x < 256; ++x)
