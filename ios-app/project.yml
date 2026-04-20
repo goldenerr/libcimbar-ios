@@ -49,6 +49,10 @@ targets:
           - $(SRCROOT)/../src/third_party_lib/wirehair/include
           - $(SRCROOT)/../src/third_party_lib/libcorrect/include
           - $(SRCROOT)/../src/third_party_lib/zstd
+          - $(SRCROOT)/Vendor/OpenCV/**
+        FRAMEWORK_SEARCH_PATHS:
+          - $(SRCROOT)/Vendor/OpenCV
+          - $(SRCROOT)/Vendor/OpenCV/**
         SWIFT_OBJC_BRIDGING_HEADER: LibCimbarReceiver/Bridge/LibCimbarReceiver-Bridging-Header.h
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     info:
