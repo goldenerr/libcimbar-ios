@@ -13,3 +13,5 @@ CTestTestfile.cmake
 Makefile
 callgrind.out*
 cmake_install.cmake
+
+ios-app/Vendor/
