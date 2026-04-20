@@ -58,6 +58,7 @@ Current default values in `project.yml`:
 
 ## Full setup guide
 
-For a fuller macOS/Xcode walkthrough, see:
+For fuller walkthroughs, see:
 
 - [`../docs/ios/ios-app-macos-xcode-setup.md`](../docs/ios/ios-app-macos-xcode-setup.md)
+- [`../docs/ios/opencv-ios-sdk-integration.md`](../docs/ios/opencv-ios-sdk-integration.md)
