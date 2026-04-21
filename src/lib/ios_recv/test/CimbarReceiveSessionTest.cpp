@@ -121,3 +121,24 @@ TEST_CASE("CimbarReceiveSession/processFrameRecoversHarderSoftenedLockedFrameChu
     assertTrue(progress.scanned_chunks > 0);
     assertStringsEqual("decoded frame chunks after secondary clarity fallback", progress.status_message);
 }
+
+TEST_CASE("CimbarReceiveSession/processFrameReportsThirdTierFallbackExhausted", "[unit]") {
+    cimbar::ios_recv::CimbarReceiveSession session;
+    cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+
+    cv::Mat softened;
+    cv::resize(img, softened, cv::Size(), 0.88, 0.88, cv::INTER_LINEAR);
+    cv::resize(softened, softened, img.size(), 0, 0, cv::INTER_LINEAR);
+    cv::GaussianBlur(softened, softened, cv::Size(21, 21), 0);
+
+    cimbar::ios_recv::ProgressSnapshot progress = session.process_frame(softened.data,
+                                                                        softened.cols,
+                                                                        softened.rows,
+                                                                        3,
+                                                                        static_cast<unsigned>(softened.step));
+
+    assertTrue(progress.recognized_frame);
+    assertTrue(progress.needs_sharpen);
+    assertEquals(0, progress.extracted_bytes);
+    assertStringsEqual("recognized frame without chunks after third-tier fallback", progress.status_message);
+}

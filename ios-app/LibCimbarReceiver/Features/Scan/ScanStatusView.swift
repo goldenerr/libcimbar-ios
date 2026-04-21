@@ -118,12 +118,16 @@ struct ScanStatusView: View {
                 return "已识别到码框，但这一帧还没解出有效 chunk。"
             case "recognized frame without chunks after clarity fallback":
                 return "已识别到码框，clarity fallback 也试过了，但这一帧仍没解出有效 chunk。"
+            case "recognized frame without chunks after third-tier fallback":
+                return "已识别到码框，第三档多变体 fallback 也试过了，但这一帧仍没解出有效 chunk。"
             case "decoded frame chunks":
                 return "这一帧已经解出了 chunk，正在推进重组进度。"
             case "decoded frame chunks after clarity fallback":
                 return "这一帧原本太糊，clarity fallback 已救回部分 chunk，正在推进重组进度。"
             case "decoded frame chunks after secondary clarity fallback":
                 return "这一帧更糊，第二档 fallback 已救回部分 chunk，正在推进重组进度。"
+            case "decoded frame chunks after third-tier fallback":
+                return "这一帧命中了第三档多变体 fallback，已救回部分 chunk，正在推进重组进度。"
             case "completed file":
                 return "文件已重组完成。"
             case "invalid frame":
