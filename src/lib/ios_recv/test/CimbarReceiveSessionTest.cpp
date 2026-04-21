@@ -20,19 +20,24 @@ cv::Mat shift_channel(const cv::Mat& ch, int dx, int dy) {
     return out;
 }
 
-cv::Mat make_chroma_bleed_softened_frame(const cv::Mat& img) {
+cv::Mat make_chroma_bleed_softened_frame(const cv::Mat& img,
+                                        double scale = 0.92,
+                                        int base_blur = 13,
+                                        int green_blur = 9,
+                                        int blue_blur = 17,
+                                        int green_shift = 1,
+                                        int blue_shift = 2) {
     cv::Mat softened;
-    cv::resize(img, softened, cv::Size(), 0.92, 0.92, cv::INTER_LINEAR);
+    cv::resize(img, softened, cv::Size(), scale, scale, cv::INTER_LINEAR);
     cv::resize(softened, softened, img.size(), 0, 0, cv::INTER_LINEAR);
-    cv::GaussianBlur(softened, softened, cv::Size(13, 13), 0);
+    cv::GaussianBlur(softened, softened, cv::Size(base_blur, base_blur), 0);
 
     std::vector<cv::Mat> ch;
     cv::split(softened, ch);
-    cv::GaussianBlur(ch[0], ch[0], cv::Size(13, 13), 0);
-    cv::GaussianBlur(ch[1], ch[1], cv::Size(9, 9), 0);
-    cv::GaussianBlur(ch[2], ch[2], cv::Size(17, 17), 0);
-    ch[1] = shift_channel(ch[1], 1, 0);
-    ch[2] = shift_channel(ch[2], 2, 0);
+    cv::GaussianBlur(ch[1], ch[1], cv::Size(green_blur, green_blur), 0);
+    cv::GaussianBlur(ch[2], ch[2], cv::Size(blue_blur, blue_blur), 0);
+    ch[1] = shift_channel(ch[1], green_shift, 0);
+    ch[2] = shift_channel(ch[2], blue_shift, 0);
 
     cv::Mat out;
     cv::merge(ch, out);
@@ -178,7 +183,7 @@ TEST_CASE("CimbarReceiveSession/processFrameRecoversHarderSoftenedLockedFrameChu
     assertTrue(progress.needs_sharpen);
     assertTrue(progress.extracted_bytes > 0);
     assertTrue(progress.scanned_chunks > 0);
-    assertStringsEqual("decoded frame chunks after clarity fallback", progress.status_message);
+    assertStringsEqual("decoded frame chunks after secondary clarity fallback", progress.status_message);
 }
 
 TEST_CASE("CimbarReceiveSession/processFrameDoesNotLeakColorCorrectionAcrossFrames", "[unit]") {
@@ -211,7 +216,7 @@ TEST_CASE("CimbarReceiveSession/processFrameDoesNotLeakColorCorrectionAcrossFram
                                                                                        static_cast<unsigned>(softened.step));
 
     assertTrue(clean.completed_file_id > 0);
-    assertStringsEqual("decoded frame chunks after clarity fallback", isolated.status_message);
+    assertStringsEqual("decoded frame chunks after secondary clarity fallback", isolated.status_message);
     assertStringsEqual(isolated.status_message, after_clean.status_message);
     assertEquals(isolated.extracted_bytes, after_clean.extracted_bytes);
 }
@@ -254,7 +259,25 @@ TEST_CASE("CimbarReceiveSession/processFrameRecoversChromaBleedSoftenedLockedFra
     assertTrue(progress.needs_sharpen);
     assertTrue(progress.extracted_bytes > 0);
     assertTrue(progress.scanned_chunks > 0);
-    assertStringsEqual("decoded frame chunks after clarity fallback", progress.status_message);
+    assertStringsEqual("decoded frame chunks", progress.status_message);
+}
+
+TEST_CASE("CimbarReceiveSession/processFrameRecoversChromaBleedFourthTierBoundaryCase", "[unit]") {
+    cimbar::ios_recv::CimbarReceiveSession session;
+    cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+
+    cv::Mat softened = make_chroma_bleed_softened_frame(img, 0.92, 13, 9, 17, 1, 3);
+
+    cimbar::ios_recv::ProgressSnapshot progress = session.process_frame(softened.data,
+                                                                        softened.cols,
+                                                                        softened.rows,
+                                                                        3,
+                                                                        static_cast<unsigned>(softened.step));
+
+    assertTrue(progress.recognized_frame);
+    assertTrue(progress.needs_sharpen);
+    assertTrue(progress.extracted_bytes > 0);
+    assertTrue(progress.scanned_chunks > 0);
 }
 
 TEST_CASE("CimbarReceiveSession/processFrameRecoversExtremelySoftenedLockedFrameChunks", "[unit]") {

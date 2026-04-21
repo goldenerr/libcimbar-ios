@@ -211,10 +211,12 @@ unsigned CimbDecoder::get_best_color(float r, float g, float b, unsigned color_m
 
 std::tuple<uchar,uchar,uchar> CimbDecoder::avg_color(const Cell& color_cell) const
 {
-	// For softened display captures, tighten sampling further to reduce chroma bleed without affecting clean frames.
+	// For softened display captures with horizontal chroma bleed, prefer an extra-narrow
+	// vertical center strip during fallback decode so we reject left/right color spill
+	// while still averaging over multiple rows.
 	Cell center = color_cell;
 	if (_tightColorSampling)
-		center.crop(3, 3, color_cell.cols()-6, color_cell.rows()-6);
+		center.crop(4, 2, color_cell.cols()-7, color_cell.rows()-4);
 	else
 		center.crop(2, 2, color_cell.cols()-4, color_cell.rows()-4);
 	return center.mean_rgb();
