@@ -115,23 +115,44 @@ CimbarDecoderBridgePhase bridge_phase_for_progress(int phase) {
 
     CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
 
-    unsigned char *baseAddress = static_cast<unsigned char *>(CVPixelBufferGetBaseAddress(pixelBuffer));
+    const OSType pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer);
     size_t width = CVPixelBufferGetWidth(pixelBuffer);
     size_t height = CVPixelBufferGetHeight(pixelBuffer);
-    size_t stride = CVPixelBufferGetBytesPerRow(pixelBuffer);
 
     CimbarDecoderBridgeSnapshot *snapshot = nil;
-    if (baseAddress != nullptr && width > 0 && height > 0) {
+    if (width > 0 && height > 0) {
         cimbar_ios_recv_progress progress = {0};
-        int result = cimbar_ios_recv_process_frame(
-            _handle,
-            baseAddress,
-            static_cast<unsigned>(width),
-            static_cast<unsigned>(height),
-            4,
-            static_cast<unsigned>(stride),
-            &progress
-        );
+        int result = -1;
+
+        if (pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange ||
+            pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange) {
+            unsigned char *yPlane = static_cast<unsigned char *>(CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0));
+            unsigned char *uvPlane = static_cast<unsigned char *>(CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1));
+            size_t yStride = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0);
+            size_t uvStride = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1);
+            if (yPlane != nullptr && uvPlane != nullptr) {
+                result = cimbar_ios_recv_process_frame_nv12(_handle,
+                                                            yPlane,
+                                                            static_cast<unsigned>(yStride),
+                                                            uvPlane,
+                                                            static_cast<unsigned>(uvStride),
+                                                            static_cast<unsigned>(width),
+                                                            static_cast<unsigned>(height),
+                                                            &progress);
+            }
+        } else {
+            unsigned char *baseAddress = static_cast<unsigned char *>(CVPixelBufferGetBaseAddress(pixelBuffer));
+            size_t stride = CVPixelBufferGetBytesPerRow(pixelBuffer);
+            if (baseAddress != nullptr) {
+                result = cimbar_ios_recv_process_frame(_handle,
+                                                       baseAddress,
+                                                       static_cast<unsigned>(width),
+                                                       static_cast<unsigned>(height),
+                                                       4,
+                                                       static_cast<unsigned>(stride),
+                                                       &progress);
+            }
+        }
 
         if (result == 0) {
             NSString *statusMessage = progress.status_message[0] != '\0'

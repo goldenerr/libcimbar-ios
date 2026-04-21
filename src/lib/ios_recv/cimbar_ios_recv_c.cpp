@@ -36,6 +36,31 @@ void fill_progress(const cimbar::ios_recv::ProgressSnapshot& progress, cimbar_io
     }
 }
 
+std::vector<unsigned char> pack_nv12_planes(const unsigned char* y_plane,
+                                            unsigned y_stride,
+                                            const unsigned char* uv_plane,
+                                            unsigned uv_stride,
+                                            unsigned width,
+                                            unsigned height) {
+    std::vector<unsigned char> packed(static_cast<size_t>(width) * static_cast<size_t>(height) * 3 / 2);
+    unsigned char* dst = packed.data();
+
+    for (unsigned row = 0; row < height; ++row) {
+        std::memcpy(dst + static_cast<size_t>(row) * width,
+                    y_plane + static_cast<size_t>(row) * y_stride,
+                    width);
+    }
+
+    unsigned char* dst_uv = dst + static_cast<size_t>(width) * height;
+    for (unsigned row = 0; row < height / 2; ++row) {
+        std::memcpy(dst_uv + static_cast<size_t>(row) * width,
+                    uv_plane + static_cast<size_t>(row) * uv_stride,
+                    width);
+    }
+
+    return packed;
+}
+
 } // namespace
 
 extern "C" {
@@ -87,6 +112,28 @@ int cimbar_ios_recv_process_frame(cimbar_ios_recv_handle* handle,
         std::make_move_iterator(completed_files.end())
     );
     return 0;
+}
+
+int cimbar_ios_recv_process_frame_nv12(cimbar_ios_recv_handle* handle,
+                                       const unsigned char* y_plane,
+                                       unsigned y_stride,
+                                       const unsigned char* uv_plane,
+                                       unsigned uv_stride,
+                                       unsigned width,
+                                       unsigned height,
+                                       cimbar_ios_recv_progress* out_progress) {
+    if (handle == nullptr || out_progress == nullptr || y_plane == nullptr || uv_plane == nullptr) {
+        return -1;
+    }
+
+    std::vector<unsigned char> packed = pack_nv12_planes(y_plane, y_stride, uv_plane, uv_stride, width, height);
+    return cimbar_ios_recv_process_frame(handle,
+                                         packed.data(),
+                                         width,
+                                         height,
+                                         12,
+                                         width,
+                                         out_progress);
 }
 
 int cimbar_ios_recv_take_completed_file(cimbar_ios_recv_handle* handle,

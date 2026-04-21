@@ -3,9 +3,42 @@
 #include "TestHelpers.h"
 #include "ios_recv/CimbarReceiveSession.h"
 
+#include <cstring>
+#include <opencv2/opencv.hpp>
+#include <vector>
+
 extern "C" {
 #include "ios_recv/cimbar_ios_recv_c.h"
 }
+
+namespace {
+
+std::vector<unsigned char> rgb_to_nv12(const cv::Mat& rgb) {
+    cv::Mat yuv_i420;
+    cv::cvtColor(rgb, yuv_i420, cv::COLOR_RGB2YUV_I420);
+
+    const int width = rgb.cols;
+    const int height = rgb.rows;
+    const size_t y_plane_size = static_cast<size_t>(width) * static_cast<size_t>(height);
+    const size_t chroma_plane_size = y_plane_size / 4;
+
+    std::vector<unsigned char> nv12(y_plane_size + y_plane_size / 2);
+    std::memcpy(nv12.data(), yuv_i420.data, y_plane_size);
+
+    const unsigned char* u_plane = yuv_i420.data + y_plane_size;
+    const unsigned char* v_plane = u_plane + chroma_plane_size;
+    unsigned char* uv_plane = nv12.data() + y_plane_size;
+    for (int row = 0; row < height / 2; ++row) {
+        for (int col = 0; col < width / 2; ++col) {
+            uv_plane[row * width + col * 2] = u_plane[row * (width / 2) + col];
+            uv_plane[row * width + col * 2 + 1] = v_plane[row * (width / 2) + col];
+        }
+    }
+
+    return nv12;
+}
+
+} // namespace
 
 TEST_CASE("CimbarReceiveSession/defaultMode", "[unit]") {
     cimbar::ios_recv::CimbarReceiveSession session;
@@ -141,4 +174,30 @@ TEST_CASE("CimbarReceiveSession/processFrameReportsThirdTierFallbackExhausted", 
     assertTrue(progress.needs_sharpen);
     assertEquals(0, progress.extracted_bytes);
     assertStringsEqual("recognized frame without chunks after third-tier fallback", progress.status_message);
+}
+
+TEST_CASE("cimbar_ios_recv_c/processNV12FrameExtractsChunks", "[unit]") {
+    auto* handle = cimbar_ios_recv_create();
+    assertFalse(handle == nullptr);
+
+    cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+    std::vector<unsigned char> nv12 = rgb_to_nv12(img);
+    const unsigned char* y_plane = nv12.data();
+    const unsigned char* uv_plane = nv12.data() + (img.cols * img.rows);
+
+    cimbar_ios_recv_progress progress{};
+    assertEquals(0,
+                 cimbar_ios_recv_process_frame_nv12(handle,
+                                                    y_plane,
+                                                    static_cast<unsigned>(img.cols),
+                                                    uv_plane,
+                                                    static_cast<unsigned>(img.cols),
+                                                    static_cast<unsigned>(img.cols),
+                                                    static_cast<unsigned>(img.rows),
+                                                    &progress));
+
+    assertTrue(progress.recognized_frame != 0);
+    assertTrue(progress.extracted_bytes > 0);
+
+    cimbar_ios_recv_destroy(handle);
 }

@@ -39,6 +39,14 @@ int cimbar_ios_recv_process_frame(cimbar_ios_recv_handle* handle,
                                   int format,
                                   unsigned stride,
                                   cimbar_ios_recv_progress* out_progress);
+int cimbar_ios_recv_process_frame_nv12(cimbar_ios_recv_handle* handle,
+                                       const unsigned char* y_plane,
+                                       unsigned y_stride,
+                                       const unsigned char* uv_plane,
+                                       unsigned uv_stride,
+                                       unsigned width,
+                                       unsigned height,
+                                       cimbar_ios_recv_progress* out_progress);
 int cimbar_ios_recv_take_completed_file(cimbar_ios_recv_handle* handle,
                                         cimbar_ios_recv_completed_file* out_file);
 void cimbar_ios_recv_completed_file_release(cimbar_ios_recv_completed_file* file);

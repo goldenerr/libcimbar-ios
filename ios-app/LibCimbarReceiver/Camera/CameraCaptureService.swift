@@ -99,7 +99,7 @@ final class CameraCaptureService: NSObject, ObservableObject {
 
         output.alwaysDiscardsLateVideoFrames = true
         output.videoSettings = [
-            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
         ]
         output.setSampleBufferDelegate(self, queue: captureQueue)
 
