@@ -154,6 +154,12 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
         int clarity_bytes = decode_into_chunk_buffer(enhanced, false);
         if (clarity_bytes > 0) {
             _progress.extracted_bytes = clarity_bytes;
+        } else {
+            int secondary_bytes = decode_into_chunk_buffer(img, false);
+            if (secondary_bytes > 0) {
+                _progress.extracted_bytes = secondary_bytes;
+                _progress.status_message = "decoded frame chunks after secondary clarity fallback";
+            }
         }
     }
 
@@ -188,9 +194,13 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
             }
         } else {
             _progress.phase = SessionPhase::Reconstructing;
-            _progress.status_message = used_clarity_fallback
-                ? "decoded frame chunks after clarity fallback"
-                : "decoded frame chunks";
+            if (_progress.status_message == "decoded frame chunks after secondary clarity fallback") {
+                // keep the second-tier clarity fallback marker set above
+            } else {
+                _progress.status_message = used_clarity_fallback
+                    ? "decoded frame chunks after clarity fallback"
+                    : "decoded frame chunks";
+            }
         }
     } else {
         _progress.phase = SessionPhase::Detecting;
