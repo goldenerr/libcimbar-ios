@@ -83,6 +83,11 @@ void CimbDecoder::update_color_correction(cv::Matx<float, 3, 3>&& ccm)
 	internal_ccm().update(std::move(ccm));
 }
 
+void CimbDecoder::reset_color_correction() const
+{
+	internal_ccm() = color_correction();
+}
+
 uint64_t CimbDecoder::get_tile_hash(unsigned symbol) const
 {
 	cv::Mat tile = cimbar::getTile(_symbolBits, symbol, _dark, _numColors);

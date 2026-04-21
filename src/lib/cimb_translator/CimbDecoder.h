@@ -17,6 +17,7 @@ public:
 
 	const color_correction& get_ccm() const;
 	void update_color_correction(cv::Matx<float, 3, 3>&& ccm);
+	void reset_color_correction() const;
 
 	unsigned get_best_symbol(image_hash::ahash_result<cimbar::Config::cell_size()>& results, unsigned& drift_offset, unsigned& best_distance, unsigned cooldown=0xFF) const;
 	unsigned decode_symbol(const cv::Mat& cell, unsigned& drift_offset, unsigned& best_distance, unsigned cooldown=0xFF) const;

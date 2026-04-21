@@ -167,6 +167,7 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
     }
 
     auto decode_into_chunk_buffer = [this](const cv::UMat& frame, bool preprocess, int color_correction = 2) {
+        _decoder.reset_color_correction();
         escrow_buffer_writer writer(_chunk_buffer.data(), fountain_chunks_per_frame(), fountain_chunk_size());
         _decoder.decode_fountain(frame, writer, preprocess, color_correction);
         return static_cast<int>(writer.buffers_in_use() * fountain_chunk_size());

@@ -217,8 +217,8 @@ void CimbReader::init_ccm(unsigned color_bits, unsigned interleave_blocks, unsig
 			//Cell color_cell(_image, pos.first, pos.second, Config::cell_size(), Config::cell_size());
 			//auto col = _decoder.avg_color(color_cell); // could just call cell mean_rgb directly?
 
-			Cell color_cell(_image, pos.first+1, pos.second+1, Config::cell_size()-2, Config::cell_size()-2);
-			auto col = color_cell.mean_rgb();
+			Cell color_cell(_image, pos.first, pos.second, Config::cell_size(), Config::cell_size());
+			auto col = _decoder.avg_color(color_cell);
 
 			auto [it, isNew] = colors.try_emplace(expected, std::make_tuple(0, 0, 0, 0)); // count,r,g,b
 			std::get<0>(it->second) += 1;

@@ -155,6 +155,41 @@ TEST_CASE("CimbarReceiveSession/processFrameRecoversHarderSoftenedLockedFrameChu
     assertStringsEqual("decoded frame chunks after clarity fallback", progress.status_message);
 }
 
+TEST_CASE("CimbarReceiveSession/processFrameDoesNotLeakColorCorrectionAcrossFrames", "[unit]") {
+    cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+
+    cv::Mat softened;
+    cv::resize(img, softened, cv::Size(), 0.76, 0.76, cv::INTER_LINEAR);
+    cv::resize(softened, softened, img.size(), 0, 0, cv::INTER_LINEAR);
+    cv::blur(softened, softened, cv::Size(7, 7));
+
+    cimbar::ios_recv::CimbarReceiveSession isolated_session;
+    cimbar::ios_recv::ProgressSnapshot isolated = isolated_session.process_frame(softened.data,
+                                                                                 softened.cols,
+                                                                                 softened.rows,
+                                                                                 3,
+                                                                                 static_cast<unsigned>(softened.step));
+
+    cimbar::ios_recv::CimbarReceiveSession clean_session;
+    cimbar::ios_recv::ProgressSnapshot clean = clean_session.process_frame(img.data,
+                                                                           img.cols,
+                                                                           img.rows,
+                                                                           3,
+                                                                           static_cast<unsigned>(img.step));
+
+    cimbar::ios_recv::CimbarReceiveSession after_clean_session;
+    cimbar::ios_recv::ProgressSnapshot after_clean = after_clean_session.process_frame(softened.data,
+                                                                                       softened.cols,
+                                                                                       softened.rows,
+                                                                                       3,
+                                                                                       static_cast<unsigned>(softened.step));
+
+    assertTrue(clean.completed_file_id > 0);
+    assertStringsEqual("decoded frame chunks after clarity fallback", isolated.status_message);
+    assertStringsEqual(isolated.status_message, after_clean.status_message);
+    assertEquals(isolated.extracted_bytes, after_clean.extracted_bytes);
+}
+
 TEST_CASE("CimbarReceiveSession/processFrameDecodesBlurredFrameAfterCorePreprocessTuning", "[unit]") {
     cimbar::ios_recv::CimbarReceiveSession session;
     cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
@@ -172,7 +207,7 @@ TEST_CASE("CimbarReceiveSession/processFrameDecodesBlurredFrameAfterCorePreproce
 
     assertTrue(progress.recognized_frame);
     assertTrue(progress.needs_sharpen);
-    assertTrue(progress.extracted_bytes > 0);
+    assertTrue(progress.extracted_bytes >= 1875);
     assertTrue(progress.scanned_chunks > 0);
     assertStringsEqual("decoded frame chunks", progress.status_message);
 }

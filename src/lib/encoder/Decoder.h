@@ -24,6 +24,8 @@ public:
 	template <typename MAT, typename STREAM>
 	unsigned decode_fountain(const MAT& img, STREAM& ostream, bool should_preprocess=false, int color_correction=2);
 
+	void reset_color_correction();
+
 protected:
 	template <typename STREAM>
 	unsigned do_decode(CimbReader& reader, STREAM& ostream);
@@ -165,6 +167,11 @@ inline unsigned Decoder::decode(const MAT& img, STREAM& ostream, bool should_pre
 {
 	CimbReader reader(img, _decoder, cimbar::Config::color_mode(), should_preprocess, color_correction);
 	return do_decode(reader, ostream);
+}
+
+inline void Decoder::reset_color_correction()
+{
+	_decoder.reset_color_correction();
 }
 
 template <typename MAT, typename FOUNTAINSTREAM>
