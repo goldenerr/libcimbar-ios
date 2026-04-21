@@ -83,11 +83,13 @@ final class CameraCaptureService: NSObject, ObservableObject {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
 
-        session.sessionPreset = .high
+        session.sessionPreset = .photo
 
         guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
             throw CameraCaptureError.noRearCamera
         }
+
+        try configureCameraForScanning(camera)
 
         let input = try AVCaptureDeviceInput(device: camera)
         guard session.canAddInput(input) else {
@@ -133,6 +135,31 @@ final class CameraCaptureService: NSObject, ObservableObject {
                 }
             }
         }
+    }
+
+    private func configureCameraForScanning(_ camera: AVCaptureDevice) throws {
+        try camera.lockForConfiguration()
+        defer { camera.unlockForConfiguration() }
+
+        if camera.isFocusModeSupported(.continuousAutoFocus) {
+            camera.focusMode = .continuousAutoFocus
+        } else if camera.isFocusModeSupported(.autoFocus) {
+            camera.focusMode = .autoFocus
+        }
+
+        if camera.isSmoothAutoFocusSupported {
+            camera.isSmoothAutoFocusEnabled = false
+        }
+
+        if camera.isExposureModeSupported(.continuousAutoExposure) {
+            camera.exposureMode = .continuousAutoExposure
+        }
+
+        if camera.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+            camera.whiteBalanceMode = .continuousAutoWhiteBalance
+        }
+
+        camera.isSubjectAreaChangeMonitoringEnabled = true
     }
 }
 
