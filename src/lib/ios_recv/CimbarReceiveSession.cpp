@@ -166,10 +166,13 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
         _progress.needs_sharpen = true;
     }
 
-    auto decode_into_chunk_buffer = [this](const cv::UMat& frame, bool preprocess, int color_correction = 2) {
+    auto decode_into_chunk_buffer = [this](const cv::UMat& frame,
+                                          bool preprocess,
+                                          int color_correction = 2,
+                                          bool tight_color_sampling = false) {
         _decoder.reset_color_correction();
         escrow_buffer_writer writer(_chunk_buffer.data(), fountain_chunks_per_frame(), fountain_chunk_size());
-        _decoder.decode_fountain(frame, writer, preprocess, color_correction);
+        _decoder.decode_fountain(frame, writer, preprocess, color_correction, tight_color_sampling);
         return static_cast<int>(writer.buffers_in_use() * fountain_chunk_size());
     };
 
@@ -177,11 +180,11 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
     if (_progress.extracted_bytes == 0 && _progress.recognized_frame) {
         used_clarity_fallback = true;
         cv::UMat enhanced = apply_clarity_fallback(img);
-        int clarity_bytes = decode_into_chunk_buffer(enhanced, false);
+        int clarity_bytes = decode_into_chunk_buffer(enhanced, false, 2, true);
         if (clarity_bytes > 0) {
             _progress.extracted_bytes = clarity_bytes;
         } else {
-            int secondary_bytes = decode_into_chunk_buffer(img, false);
+            int secondary_bytes = decode_into_chunk_buffer(img, false, 2, true);
             if (secondary_bytes > 0) {
                 _progress.extracted_bytes = secondary_bytes;
                 _progress.status_message = "decoded frame chunks after secondary clarity fallback";
@@ -193,7 +196,7 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
                 }};
                 for (const auto& [name, variant] : third_tier_variants) {
                     (void)name;
-                    int variant_bytes = decode_into_chunk_buffer(variant, false);
+                    int variant_bytes = decode_into_chunk_buffer(variant, false, 2, true);
                     if (variant_bytes > 0) {
                         _progress.extracted_bytes = variant_bytes;
                         _progress.status_message = "decoded frame chunks after third-tier fallback";
@@ -207,7 +210,7 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
                     }};
                     for (const auto& variant : fourth_tier_variants) {
                         for (int color_correction : {0, 1, 2, 3, 4}) {
-                            int variant_bytes = decode_into_chunk_buffer(variant, false, color_correction);
+                            int variant_bytes = decode_into_chunk_buffer(variant, false, color_correction, true);
                             if (variant_bytes > 0) {
                                 _progress.extracted_bytes = variant_bytes;
                                 _progress.status_message = "decoded frame chunks after fourth-tier fallback";

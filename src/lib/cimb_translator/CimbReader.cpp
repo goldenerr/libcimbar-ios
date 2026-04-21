@@ -108,7 +108,7 @@ namespace {
 	}
 }
 
-CimbReader::CimbReader(const cv::Mat& img, CimbDecoder& decoder, unsigned color_mode, bool needs_sharpen, int color_correction)
+CimbReader::CimbReader(const cv::Mat& img, CimbDecoder& decoder, unsigned color_mode, bool needs_sharpen, int color_correction, bool tight_color_sampling)
 	: _image(img)
 	, _fountainColorHeader(0U)
 	, _radioactiveBlockId(0) // can only compute once we know the file size
@@ -124,13 +124,14 @@ CimbReader::CimbReader(const cv::Mat& img, CimbDecoder& decoder, unsigned color_
 	, _colorCorrection(color_correction)
 	, _colorMode(color_mode)
 {
+	_decoder.set_tight_color_sampling(tight_color_sampling);
 	_grayscale = preprocessSymbolGrid(img, needs_sharpen);
 	if (_good and color_correction == 1)
 		simpleColorCorrection(_image, decoder, _gridPadding);
 }
 
-CimbReader::CimbReader(const cv::UMat& img, CimbDecoder& decoder, unsigned color_mode, bool needs_sharpen, int color_correction)
-	: CimbReader(img.getMat(cv::ACCESS_READ), decoder, color_mode, needs_sharpen, color_correction)
+CimbReader::CimbReader(const cv::UMat& img, CimbDecoder& decoder, unsigned color_mode, bool needs_sharpen, int color_correction, bool tight_color_sampling)
+	: CimbReader(img.getMat(cv::ACCESS_READ), decoder, color_mode, needs_sharpen, color_correction, tight_color_sampling)
 {
 }
 

@@ -19,10 +19,10 @@ public:
 	Decoder(bool use_ecc=true, bool interleave=true);
 
 	template <typename MAT, typename STREAM>
-	unsigned decode(const MAT& img, STREAM& ostream, bool should_preprocess=false, int color_correction=2);
+	unsigned decode(const MAT& img, STREAM& ostream, bool should_preprocess=false, int color_correction=2, bool tight_color_sampling=false);
 
 	template <typename MAT, typename STREAM>
-	unsigned decode_fountain(const MAT& img, STREAM& ostream, bool should_preprocess=false, int color_correction=2);
+	unsigned decode_fountain(const MAT& img, STREAM& ostream, bool should_preprocess=false, int color_correction=2, bool tight_color_sampling=false);
 
 	void reset_color_correction();
 
@@ -163,9 +163,9 @@ inline unsigned Decoder::do_decode_coupled(CimbReader& reader, STREAM& ostream)
 }
 
 template <typename MAT, typename STREAM>
-inline unsigned Decoder::decode(const MAT& img, STREAM& ostream, bool should_preprocess, int color_correction)
+inline unsigned Decoder::decode(const MAT& img, STREAM& ostream, bool should_preprocess, int color_correction, bool tight_color_sampling)
 {
-	CimbReader reader(img, _decoder, cimbar::Config::color_mode(), should_preprocess, color_correction);
+	CimbReader reader(img, _decoder, cimbar::Config::color_mode(), should_preprocess, color_correction, tight_color_sampling);
 	return do_decode(reader, ostream);
 }
 
@@ -175,9 +175,9 @@ inline void Decoder::reset_color_correction()
 }
 
 template <typename MAT, typename FOUNTAINSTREAM>
-inline unsigned Decoder::decode_fountain(const MAT& img, FOUNTAINSTREAM& ostream, bool should_preprocess, int color_correction)
+inline unsigned Decoder::decode_fountain(const MAT& img, FOUNTAINSTREAM& ostream, bool should_preprocess, int color_correction, bool tight_color_sampling)
 {
-	CimbReader reader(img, _decoder, cimbar::Config::color_mode(), should_preprocess, color_correction);
+	CimbReader reader(img, _decoder, cimbar::Config::color_mode(), should_preprocess, color_correction, tight_color_sampling);
 	unsigned chunk_size = cimbar::Config::fountain_chunk_size();
 	auto update_md_fun = std::bind(&CimbReader::update_metadata, &reader, std::placeholders::_1, std::placeholders::_2, chunk_size);
 

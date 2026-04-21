@@ -12,8 +12,8 @@
 class CimbReader
 {
 public:
-	CimbReader(const cv::Mat& img, CimbDecoder& decoder, unsigned color_mode, bool needs_sharpen=false, int color_correction=2);
-	CimbReader(const cv::UMat& img, CimbDecoder& decoder, unsigned color_mode, bool needs_sharpen=false, int color_correction=2);
+	CimbReader(const cv::Mat& img, CimbDecoder& decoder, unsigned color_mode, bool needs_sharpen=false, int color_correction=2, bool tight_color_sampling=false);
+	CimbReader(const cv::UMat& img, CimbDecoder& decoder, unsigned color_mode, bool needs_sharpen=false, int color_correction=2, bool tight_color_sampling=false);
 
 	unsigned read(PositionData& pos);
 	unsigned read_color(const PositionData& pos) const;

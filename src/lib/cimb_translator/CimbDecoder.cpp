@@ -60,6 +60,7 @@ CimbDecoder::CimbDecoder(unsigned symbol_bits, unsigned color_bits, bool dark, u
 	, _numColors(1 << color_bits)
 	, _dark(dark)
 	, _ahashThreshold(ahashThreshold)
+	, _tightColorSampling(false)
 {
 	load_tiles();
 }
@@ -86,6 +87,11 @@ void CimbDecoder::update_color_correction(cv::Matx<float, 3, 3>&& ccm)
 void CimbDecoder::reset_color_correction() const
 {
 	internal_ccm() = color_correction();
+}
+
+void CimbDecoder::set_tight_color_sampling(bool enabled)
+{
+	_tightColorSampling = enabled;
 }
 
 uint64_t CimbDecoder::get_tile_hash(unsigned symbol) const
@@ -205,9 +211,12 @@ unsigned CimbDecoder::get_best_color(float r, float g, float b, unsigned color_m
 
 std::tuple<uchar,uchar,uchar> CimbDecoder::avg_color(const Cell& color_cell) const
 {
-	// For softened display captures, bias sampling toward the cell core to reduce edge bleed.
+	// For softened display captures, tighten sampling further to reduce chroma bleed without affecting clean frames.
 	Cell center = color_cell;
-	center.crop(2, 2, color_cell.cols()-4, color_cell.rows()-4);
+	if (_tightColorSampling)
+		center.crop(3, 3, color_cell.cols()-6, color_cell.rows()-6);
+	else
+		center.crop(2, 2, color_cell.cols()-4, color_cell.rows()-4);
 	return center.mean_rgb();
 }
 
