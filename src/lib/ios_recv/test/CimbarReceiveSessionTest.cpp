@@ -29,6 +29,17 @@ TEST_CASE("cimbar_ios_recv_c/createResetDestroy", "[unit]") {
     cimbar_ios_recv_destroy(handle);
 }
 
+TEST_CASE("cimbar_ios_recv_c/processFrameReportsStatusMessage", "[unit]") {
+    auto* handle = cimbar_ios_recv_create();
+    assertFalse(handle == nullptr);
+
+    cimbar_ios_recv_progress progress{};
+    assertEquals(0, cimbar_ios_recv_process_frame(handle, nullptr, 0, 0, 3, 0, &progress));
+    assertStringsEqual("invalid frame", progress.status_message);
+
+    cimbar_ios_recv_destroy(handle);
+}
+
 TEST_CASE("CimbarReceiveSession/processFrameExtractsChunks", "[unit]") {
     cimbar::ios_recv::CimbarReceiveSession session;
     cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
@@ -65,4 +76,47 @@ TEST_CASE("CimbarReceiveSession/processFrameReportsChunkCounts", "[unit]") {
     assertTrue(progress.total_chunks > 0);
     assertTrue(progress.scanned_chunks > 0);
     assertTrue(progress.scanned_chunks <= progress.total_chunks);
+}
+
+TEST_CASE("CimbarReceiveSession/processFrameRecoversSoftenedLockedFrameChunks", "[unit]") {
+    cimbar::ios_recv::CimbarReceiveSession session;
+    cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+
+    cv::Mat softened;
+    cv::resize(img, softened, cv::Size(), 0.92, 0.92, cv::INTER_LINEAR);
+    cv::resize(softened, softened, img.size(), 0, 0, cv::INTER_LINEAR);
+    cv::blur(softened, softened, cv::Size(9, 9));
+
+    cimbar::ios_recv::ProgressSnapshot progress = session.process_frame(softened.data,
+                                                                        softened.cols,
+                                                                        softened.rows,
+                                                                        3,
+                                                                        static_cast<unsigned>(softened.step));
+
+    assertTrue(progress.recognized_frame);
+    assertTrue(progress.needs_sharpen);
+    assertTrue(progress.extracted_bytes > 0);
+    assertTrue(progress.scanned_chunks > 0);
+    assertStringsEqual("decoded frame chunks after clarity fallback", progress.status_message);
+}
+
+TEST_CASE("CimbarReceiveSession/processFrameReportsFailedClarityFallback", "[unit]") {
+    cimbar::ios_recv::CimbarReceiveSession session;
+    cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+
+    cv::Mat softened;
+    cv::resize(img, softened, cv::Size(), 0.76, 0.76, cv::INTER_LINEAR);
+    cv::resize(softened, softened, img.size(), 0, 0, cv::INTER_LINEAR);
+    cv::blur(softened, softened, cv::Size(7, 7));
+
+    cimbar::ios_recv::ProgressSnapshot progress = session.process_frame(softened.data,
+                                                                        softened.cols,
+                                                                        softened.rows,
+                                                                        3,
+                                                                        static_cast<unsigned>(softened.step));
+
+    assertTrue(progress.recognized_frame);
+    assertTrue(progress.needs_sharpen);
+    assertEquals(0, progress.extracted_bytes);
+    assertStringsEqual("recognized frame without chunks after clarity fallback", progress.status_message);
 }

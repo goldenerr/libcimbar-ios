@@ -34,6 +34,7 @@ struct ScanSnapshot: Equatable {
     let completedFileID: Int64
     let scannedChunks: Int
     let totalChunks: Int
+    let statusMessage: String
 }
 
 struct ScanState: Equatable {
@@ -44,6 +45,7 @@ struct ScanState: Equatable {
     var completedFileID: Int64?
     var scannedChunks = 0
     var totalChunks = 0
+    var nativeStatusMessage = ""
     var statusText = ScanPhase.idle.statusText
 
     var hasChunkProgress: Bool {
@@ -52,6 +54,14 @@ struct ScanState: Equatable {
 
     var hasScannedChunks: Bool {
         normalizedScannedChunks > 0
+    }
+
+    var hasDecodedPayload: Bool {
+        extractedBytes > 0
+    }
+
+    var isLockedFrameWithoutChunks: Bool {
+        isRecognizedFrame && !hasDecodedPayload
     }
 
     var normalizedScannedChunks: Int {
@@ -83,6 +93,7 @@ struct ScanState: Equatable {
         completedFileID = snapshot.completedFileID > 0 ? snapshot.completedFileID : nil
         scannedChunks = snapshot.scannedChunks
         totalChunks = snapshot.totalChunks
+        nativeStatusMessage = snapshot.statusMessage
         statusText = snapshot.phase.statusText
     }
 }

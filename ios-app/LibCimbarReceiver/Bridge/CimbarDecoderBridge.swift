@@ -74,7 +74,8 @@ private extension ScanSnapshot {
             extractedBytes: nativeSnapshot.extractedBytes,
             completedFileID: nativeSnapshot.completedFileID,
             scannedChunks: nativeSnapshot.scannedChunks,
-            totalChunks: nativeSnapshot.totalChunks
+            totalChunks: nativeSnapshot.totalChunks,
+            statusMessage: nativeSnapshot.statusMessage
         )
     }
 }

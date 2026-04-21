@@ -12,7 +12,8 @@
                extractedBytes:(NSInteger)extractedBytes
               completedFileID:(int64_t)completedFileID
                 scannedChunks:(NSInteger)scannedChunks
-                  totalChunks:(NSInteger)totalChunks {
+                  totalChunks:(NSInteger)totalChunks
+                statusMessage:(NSString *)statusMessage {
     self = [super init];
     if (self) {
         _phase = phase;
@@ -22,6 +23,7 @@
         _completedFileID = completedFileID;
         _scannedChunks = scannedChunks;
         _totalChunks = totalChunks;
+        _statusMessage = [statusMessage copy];
     }
     return self;
 }
@@ -132,13 +134,17 @@ CimbarDecoderBridgePhase bridge_phase_for_progress(int phase) {
         );
 
         if (result == 0) {
+            NSString *statusMessage = progress.status_message[0] != '\0'
+                ? [NSString stringWithUTF8String:progress.status_message]
+                : @"";
             snapshot = [[CimbarDecoderBridgeSnapshot alloc] initWithPhase:bridge_phase_for_progress(progress.phase)
                                                           recognizedFrame:(progress.recognized_frame != 0)
                                                              needsSharpen:(progress.needs_sharpen != 0)
                                                            extractedBytes:progress.extracted_bytes
                                                           completedFileID:progress.completed_file_id
                                                             scannedChunks:progress.scanned_chunks
-                                                              totalChunks:progress.total_chunks];
+                                                              totalChunks:progress.total_chunks
+                                                            statusMessage:statusMessage];
         }
     }
 

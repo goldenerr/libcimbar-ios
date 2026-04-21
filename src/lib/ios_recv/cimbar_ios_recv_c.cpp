@@ -27,6 +27,13 @@ void fill_progress(const cimbar::ios_recv::ProgressSnapshot& progress, cimbar_io
     out_progress->completed_file_id = progress.completed_file_id;
     out_progress->scanned_chunks = progress.scanned_chunks;
     out_progress->total_chunks = progress.total_chunks;
+
+    std::memset(out_progress->status_message, 0, sizeof(out_progress->status_message));
+    if (!progress.status_message.empty()) {
+        std::strncpy(out_progress->status_message,
+                     progress.status_message.c_str(),
+                     sizeof(out_progress->status_message) - 1);
+    }
 }
 
 } // namespace

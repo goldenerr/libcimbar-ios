@@ -27,6 +27,16 @@ unsigned fountain_chunk_size() {
     return cimbar::Config::fountain_chunk_size();
 }
 
+cv::UMat apply_clarity_fallback(const cv::UMat& img) {
+    cv::UMat lap16;
+    cv::UMat lap;
+    cv::UMat enhanced;
+    cv::Laplacian(img, lap16, CV_16S, 3);
+    cv::convertScaleAbs(lap16, lap);
+    cv::addWeighted(img, 1.6, lap, 0.7, 0.0, enhanced);
+    return enhanced;
+}
+
 cv::UMat get_rgb(const unsigned char* imgdata, unsigned width, unsigned height, int type, unsigned stride) {
     cv::UMat img;
     size_t row_stride = stride > 0 ? static_cast<size_t>(stride) : static_cast<size_t>(cv::Mat::AUTO_STEP);
@@ -115,10 +125,10 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
         refresh_decode_state();
     }
 
-    escrow_buffer_writer ebw(_chunk_buffer.data(), fountain_chunks_per_frame(), fountain_chunk_size());
     cv::UMat img = get_rgb(imgdata, width, height, format <= 0 ? 3 : format, stride);
 
     bool should_preprocess = false;
+    bool used_clarity_fallback = false;
     int extract_result = _extractor.extract(img, img);
     if (!extract_result) {
         _progress.status_message = "searching";
@@ -131,8 +141,21 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
         _progress.needs_sharpen = true;
     }
 
-    _decoder.decode_fountain(img, ebw, should_preprocess);
-    _progress.extracted_bytes = static_cast<int>(ebw.buffers_in_use() * fountain_chunk_size());
+    auto decode_into_chunk_buffer = [this](const cv::UMat& frame, bool preprocess) {
+        escrow_buffer_writer writer(_chunk_buffer.data(), fountain_chunks_per_frame(), fountain_chunk_size());
+        _decoder.decode_fountain(frame, writer, preprocess);
+        return static_cast<int>(writer.buffers_in_use() * fountain_chunk_size());
+    };
+
+    _progress.extracted_bytes = decode_into_chunk_buffer(img, should_preprocess);
+    if (_progress.extracted_bytes == 0 && _progress.recognized_frame) {
+        used_clarity_fallback = true;
+        cv::UMat enhanced = apply_clarity_fallback(img);
+        int clarity_bytes = decode_into_chunk_buffer(enhanced, false);
+        if (clarity_bytes > 0) {
+            _progress.extracted_bytes = clarity_bytes;
+        }
+    }
 
     if (_progress.extracted_bytes > 0) {
         if (!_sink) {
@@ -165,11 +188,15 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
             }
         } else {
             _progress.phase = SessionPhase::Reconstructing;
-            _progress.status_message = "decoded frame chunks";
+            _progress.status_message = used_clarity_fallback
+                ? "decoded frame chunks after clarity fallback"
+                : "decoded frame chunks";
         }
     } else {
         _progress.phase = SessionPhase::Detecting;
-        _progress.status_message = "recognized frame without chunks";
+        _progress.status_message = used_clarity_fallback
+            ? "recognized frame without chunks after clarity fallback"
+            : "recognized frame without chunks";
     }
 
     return _progress;

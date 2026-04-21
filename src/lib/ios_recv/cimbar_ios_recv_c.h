@@ -18,6 +18,7 @@ typedef struct {
     int64_t completed_file_id;
     int scanned_chunks;
     int total_chunks;
+    char status_message[128];
 } cimbar_ios_recv_progress;
 
 typedef struct {
