@@ -200,10 +200,9 @@ unsigned CimbDecoder::get_best_color(float r, float g, float b, unsigned color_m
 
 std::tuple<uchar,uchar,uchar> CimbDecoder::avg_color(const Cell& color_cell) const
 {
-	// TODO: check/enforce dimensions of color_cell?
-	// limit dimensions to ignore outer row/col. We want to look at the middle 6x6, or 3x3...
+	// For softened display captures, bias sampling toward the cell core to reduce edge bleed.
 	Cell center = color_cell;
-	center.crop(1, 1, color_cell.cols()-2, color_cell.rows()-2);
+	center.crop(2, 2, color_cell.cols()-4, color_cell.rows()-4);
 	return center.mean_rgb();
 }
 

@@ -152,7 +152,7 @@ TEST_CASE("CimbarReceiveSession/processFrameRecoversHarderSoftenedLockedFrameChu
     assertTrue(progress.needs_sharpen);
     assertTrue(progress.extracted_bytes > 0);
     assertTrue(progress.scanned_chunks > 0);
-    assertStringsEqual("decoded frame chunks after secondary clarity fallback", progress.status_message);
+    assertStringsEqual("decoded frame chunks after clarity fallback", progress.status_message);
 }
 
 TEST_CASE("CimbarReceiveSession/processFrameDecodesBlurredFrameAfterCorePreprocessTuning", "[unit]") {
@@ -196,7 +196,7 @@ TEST_CASE("CimbarReceiveSession/processFrameRecoversExtremelySoftenedLockedFrame
     assertTrue(progress.needs_sharpen);
     assertTrue(progress.extracted_bytes > 0);
     assertTrue(progress.scanned_chunks > 0);
-    assertStringsEqual("decoded frame chunks after fourth-tier fallback", progress.status_message);
+    assertStringsEqual("decoded frame chunks after clarity fallback", progress.status_message);
 }
 
 TEST_CASE("cimbar_ios_recv_c/processNV12FrameCompletesCleanFrame", "[unit]") {
