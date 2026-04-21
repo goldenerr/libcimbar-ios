@@ -49,16 +49,25 @@ struct ScanStatusView: View {
                 Label("诊断：已锁定码框，但这一帧还没解出有效 chunk。", systemImage: "stethoscope")
                     .font(.caption)
                     .foregroundStyle(.yellow)
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
             } else if scanState.hasDecodedPayload && !scanState.hasChunkProgress {
                 Label("诊断：已读到 payload bytes，正在等待 fountain 元数据给出总码数。", systemImage: "waveform.path.ecg")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             if !scanState.nativeStatusMessage.isEmpty {
                 Label("Native: \(scanState.nativeStatusMessage)", systemImage: "terminal")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
             }
 
@@ -66,6 +75,9 @@ struct ScanStatusView: View {
                 Label("Try moving closer or improving lighting.", systemImage: "wand.and.stars")
                     .font(.caption)
                     .foregroundStyle(.yellow)
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             if let completedFileID = scanState.completedFileID {
