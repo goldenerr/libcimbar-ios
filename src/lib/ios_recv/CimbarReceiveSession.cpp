@@ -58,6 +58,10 @@ cv::UMat apply_unsharp_variant(const cv::UMat& img, double sigma, double alpha, 
     return enhanced;
 }
 
+cv::UMat apply_deconvish_variant(const cv::UMat& img) {
+    return apply_unsharp_variant(img, 0.6, 2.8, -1.8);
+}
+
 cv::UMat get_rgb(const unsigned char* imgdata, unsigned width, unsigned height, int type, unsigned stride) {
     cv::UMat img;
     size_t row_stride = stride > 0 ? static_cast<size_t>(stride) : static_cast<size_t>(cv::Mat::AUTO_STEP);
@@ -162,9 +166,9 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
         _progress.needs_sharpen = true;
     }
 
-    auto decode_into_chunk_buffer = [this](const cv::UMat& frame, bool preprocess) {
+    auto decode_into_chunk_buffer = [this](const cv::UMat& frame, bool preprocess, int color_correction = 2) {
         escrow_buffer_writer writer(_chunk_buffer.data(), fountain_chunks_per_frame(), fountain_chunk_size());
-        _decoder.decode_fountain(frame, writer, preprocess);
+        _decoder.decode_fountain(frame, writer, preprocess, color_correction);
         return static_cast<int>(writer.buffers_in_use() * fountain_chunk_size());
     };
 
@@ -196,7 +200,26 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
                     }
                 }
                 if (_progress.extracted_bytes == 0) {
-                    _progress.status_message = "recognized frame without chunks after third-tier fallback";
+                    std::array<cv::UMat, 2> fourth_tier_variants = {{
+                        apply_deconvish_variant(img),
+                        apply_clarity_fallback(apply_deconvish_variant(img))
+                    }};
+                    for (const auto& variant : fourth_tier_variants) {
+                        for (int color_correction : {0, 1, 2, 3, 4}) {
+                            int variant_bytes = decode_into_chunk_buffer(variant, false, color_correction);
+                            if (variant_bytes > 0) {
+                                _progress.extracted_bytes = variant_bytes;
+                                _progress.status_message = "decoded frame chunks after fourth-tier fallback";
+                                break;
+                            }
+                        }
+                        if (_progress.extracted_bytes > 0) {
+                            break;
+                        }
+                    }
+                }
+                if (_progress.extracted_bytes == 0) {
+                    _progress.status_message = "recognized frame without chunks after fourth-tier fallback";
                 }
             }
         }
@@ -234,7 +257,8 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
         } else {
             _progress.phase = SessionPhase::Reconstructing;
             if (_progress.status_message == "decoded frame chunks after secondary clarity fallback" ||
-                _progress.status_message == "decoded frame chunks after third-tier fallback") {
+                _progress.status_message == "decoded frame chunks after third-tier fallback" ||
+                _progress.status_message == "decoded frame chunks after fourth-tier fallback") {
                 // keep the fallback marker set above
             } else {
                 _progress.status_message = used_clarity_fallback
@@ -244,8 +268,8 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
         }
     } else {
         _progress.phase = SessionPhase::Detecting;
-        if (_progress.status_message == "recognized frame without chunks after third-tier fallback") {
-            // keep the third-tier exhaustion marker set above
+        if (_progress.status_message == "recognized frame without chunks after fourth-tier fallback") {
+            // keep the fourth-tier exhaustion marker set above
         } else {
             _progress.status_message = used_clarity_fallback
                 ? "recognized frame without chunks after clarity fallback"

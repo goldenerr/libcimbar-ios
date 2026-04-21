@@ -155,7 +155,7 @@ TEST_CASE("CimbarReceiveSession/processFrameRecoversHarderSoftenedLockedFrameChu
     assertStringsEqual("decoded frame chunks after secondary clarity fallback", progress.status_message);
 }
 
-TEST_CASE("CimbarReceiveSession/processFrameReportsThirdTierFallbackExhausted", "[unit]") {
+TEST_CASE("CimbarReceiveSession/processFrameRecoversExtremelySoftenedLockedFrameChunks", "[unit]") {
     cimbar::ios_recv::CimbarReceiveSession session;
     cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
 
@@ -172,11 +172,12 @@ TEST_CASE("CimbarReceiveSession/processFrameReportsThirdTierFallbackExhausted", 
 
     assertTrue(progress.recognized_frame);
     assertTrue(progress.needs_sharpen);
-    assertEquals(0, progress.extracted_bytes);
-    assertStringsEqual("recognized frame without chunks after third-tier fallback", progress.status_message);
+    assertTrue(progress.extracted_bytes > 0);
+    assertTrue(progress.scanned_chunks > 0);
+    assertStringsEqual("decoded frame chunks after fourth-tier fallback", progress.status_message);
 }
 
-TEST_CASE("cimbar_ios_recv_c/processNV12FrameExtractsChunks", "[unit]") {
+TEST_CASE("cimbar_ios_recv_c/processNV12FrameCompletesCleanFrame", "[unit]") {
     auto* handle = cimbar_ios_recv_create();
     assertFalse(handle == nullptr);
 
@@ -198,6 +199,8 @@ TEST_CASE("cimbar_ios_recv_c/processNV12FrameExtractsChunks", "[unit]") {
 
     assertTrue(progress.recognized_frame != 0);
     assertTrue(progress.extracted_bytes > 0);
+    assertTrue(progress.completed_file_id > 0);
+    assertStringsEqual("completed file", progress.status_message);
 
     cimbar_ios_recv_destroy(handle);
 }
