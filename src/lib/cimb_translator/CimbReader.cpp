@@ -35,10 +35,14 @@ namespace {
 		cv::cvtColor(img, symbols, cv::COLOR_RGB2GRAY);
 		if (needs_sharpen)
 		{
-			blockSize = 7;
+			blockSize = 9;
 			sharpenSymbolGrid(symbols, symbols);
+			cv::adaptiveThreshold(symbols, symbols, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, blockSize, 0);
 		}
-		cv::adaptiveThreshold(symbols, symbols, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, blockSize, 0);
+		else
+		{
+			cv::adaptiveThreshold(symbols, symbols, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, blockSize, 0);
+		}
 
 		bitbuffer bb(symbols.rows * symbols.cols / 8);
 		bitmatrix::mat_to_bitbuffer(symbols, bb.get_writer());
