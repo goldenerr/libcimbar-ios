@@ -216,12 +216,15 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
                     }
                 }
                 if (_progress.extracted_bytes == 0) {
-                    std::array<cv::UMat, 3> realigned_inputs = {{
+                    std::array<cv::UMat, 6> realigned_inputs = {{
                         apply_channel_realign_variant(img, -1, -3),
                         apply_channel_realign_variant(img, -2, -2),
-                        apply_channel_realign_variant(img, -1, -1)
+                        apply_channel_realign_variant(img, -1, -1),
+                        apply_channel_realign_variant(img, 1, 3),
+                        apply_channel_realign_variant(img, 2, 2),
+                        apply_channel_realign_variant(img, 1, 1)
                     }};
-                    std::array<cv::UMat, 8> fourth_tier_variants = {{
+                    std::array<cv::UMat, 14> fourth_tier_variants = {{
                         apply_deconvish_variant(img),
                         apply_clarity_fallback(apply_deconvish_variant(img)),
                         apply_deconvish_variant(realigned_inputs[0]),
@@ -229,7 +232,13 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
                         apply_deconvish_variant(realigned_inputs[1]),
                         apply_clarity_fallback(apply_deconvish_variant(realigned_inputs[1])),
                         apply_deconvish_variant(realigned_inputs[2]),
-                        apply_clarity_fallback(apply_deconvish_variant(realigned_inputs[2]))
+                        apply_clarity_fallback(apply_deconvish_variant(realigned_inputs[2])),
+                        apply_deconvish_variant(realigned_inputs[3]),
+                        apply_clarity_fallback(apply_deconvish_variant(realigned_inputs[3])),
+                        apply_deconvish_variant(realigned_inputs[4]),
+                        apply_clarity_fallback(apply_deconvish_variant(realigned_inputs[4])),
+                        apply_deconvish_variant(realigned_inputs[5]),
+                        apply_clarity_fallback(apply_deconvish_variant(realigned_inputs[5]))
                     }};
                     for (const auto& variant : fourth_tier_variants) {
                         for (bool tight_color_sampling : {true, false}) {

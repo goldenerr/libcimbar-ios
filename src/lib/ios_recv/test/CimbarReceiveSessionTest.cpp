@@ -318,6 +318,44 @@ TEST_CASE("CimbarReceiveSession/processFrameRecoversOffsetChromaBleedFourthTierC
     assertStringsEqual("decoded frame chunks after fourth-tier fallback", progress.status_message);
 }
 
+TEST_CASE("CimbarReceiveSession/processFrameRecoversMirroredChromaBleedFourthTierCase", "[unit]") {
+    cimbar::ios_recv::CimbarReceiveSession session;
+    cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+
+    cv::Mat softened = make_chroma_bleed_softened_frame(img, 0.92, 13, 9, 19, -1, -3);
+
+    cimbar::ios_recv::ProgressSnapshot progress = session.process_frame(softened.data,
+                                                                        softened.cols,
+                                                                        softened.rows,
+                                                                        3,
+                                                                        static_cast<unsigned>(softened.step));
+
+    assertTrue(progress.recognized_frame);
+    assertTrue(progress.needs_sharpen);
+    assertTrue(progress.extracted_bytes > 0);
+    assertTrue(progress.scanned_chunks > 0);
+    assertStringsEqual("decoded frame chunks after fourth-tier fallback", progress.status_message);
+}
+
+TEST_CASE("CimbarReceiveSession/processFrameRecoversMirroredOffsetChromaBleedFourthTierCase", "[unit]") {
+    cimbar::ios_recv::CimbarReceiveSession session;
+    cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+
+    cv::Mat softened = make_chroma_bleed_softened_frame(img, 0.92, 13, 9, 19, -2, -2);
+
+    cimbar::ios_recv::ProgressSnapshot progress = session.process_frame(softened.data,
+                                                                        softened.cols,
+                                                                        softened.rows,
+                                                                        3,
+                                                                        static_cast<unsigned>(softened.step));
+
+    assertTrue(progress.recognized_frame);
+    assertTrue(progress.needs_sharpen);
+    assertTrue(progress.extracted_bytes > 0);
+    assertTrue(progress.scanned_chunks > 0);
+    assertStringsEqual("decoded frame chunks after fourth-tier fallback", progress.status_message);
+}
+
 TEST_CASE("CimbarReceiveSession/processFrameRecoversExtremelySoftenedLockedFrameChunks", "[unit]") {
     cimbar::ios_recv::CimbarReceiveSession session;
     cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
