@@ -63,3 +63,149 @@ TEST_CASE( "ExtractorTest/testExtractSoftenedDisplayFrameFallsBackToAdaptiveScan
 	assertFalse( out.empty() );
 }
 
+static cv::Mat shift_channel(const cv::Mat& ch, int dx, int dy)
+{
+	cv::Mat out;
+	cv::Mat M = (cv::Mat_<double>(2, 3) << 1, 0, dx, 0, 1, dy);
+	cv::warpAffine(ch, out, M, ch.size(), cv::INTER_LINEAR, cv::BORDER_REPLICATE);
+	return out;
+}
+
+TEST_CASE( "ExtractorTest/testExtractStrongChromaBleedFrameFallsBackToSharpenedAdaptiveScan", "[unit]" )
+{
+	cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+	cv::Mat softened;
+	cv::resize(img, softened, cv::Size(), 0.92, 0.92, cv::INTER_LINEAR);
+	cv::resize(softened, softened, img.size(), 0, 0, cv::INTER_LINEAR);
+	cv::GaussianBlur(softened, softened, cv::Size(13, 13), 0);
+
+	std::vector<cv::Mat> ch;
+	cv::split(softened, ch);
+	cv::GaussianBlur(ch[1], ch[1], cv::Size(9, 9), 0);
+	cv::GaussianBlur(ch[2], ch[2], cv::Size(17, 17), 0);
+	ch[1] = shift_channel(ch[1], 1, 0);
+	ch[2] = shift_channel(ch[2], 4, 0);
+	cv::merge(ch, softened);
+
+	cv::Mat out;
+	Extractor ext(0, {1024, 1024}, 30);
+	int result = ext.extract(softened, out);
+	assertEquals( Extractor::NEEDS_SHARPEN, result );
+	assertFalse( out.empty() );
+}
+
+TEST_CASE( "ExtractorTest/testExtractVerySoftChromaBleedFrameFallsBackToStrongerSharpenedAdaptiveScan", "[unit]" )
+{
+	cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+	cv::Mat softened;
+	cv::resize(img, softened, cv::Size(), 0.92, 0.92, cv::INTER_LINEAR);
+	cv::resize(softened, softened, img.size(), 0, 0, cv::INTER_LINEAR);
+	cv::GaussianBlur(softened, softened, cv::Size(15, 15), 0);
+
+	std::vector<cv::Mat> ch;
+	cv::split(softened, ch);
+	cv::GaussianBlur(ch[1], ch[1], cv::Size(9, 9), 0);
+	cv::GaussianBlur(ch[2], ch[2], cv::Size(17, 17), 0);
+	ch[1] = shift_channel(ch[1], 1, 0);
+	ch[2] = shift_channel(ch[2], 3, 0);
+	cv::merge(ch, softened);
+
+	cv::Mat out;
+	Extractor ext(0, {1024, 1024}, 30);
+	int result = ext.extract(softened, out);
+	assertEquals( Extractor::NEEDS_SHARPEN, result );
+	assertFalse( out.empty() );
+}
+
+TEST_CASE( "ExtractorTest/testExtractHeavierBlueBleedFrameFallsBackToThirdSharpenedAdaptiveScan", "[unit]" )
+{
+	cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+	cv::Mat softened;
+	cv::resize(img, softened, cv::Size(), 0.92, 0.92, cv::INTER_LINEAR);
+	cv::resize(softened, softened, img.size(), 0, 0, cv::INTER_LINEAR);
+	cv::GaussianBlur(softened, softened, cv::Size(15, 15), 0);
+
+	std::vector<cv::Mat> ch;
+	cv::split(softened, ch);
+	cv::GaussianBlur(ch[1], ch[1], cv::Size(9, 9), 0);
+	cv::GaussianBlur(ch[2], ch[2], cv::Size(17, 17), 0);
+	ch[1] = shift_channel(ch[1], 1, 0);
+	ch[2] = shift_channel(ch[2], 4, 0);
+	cv::merge(ch, softened);
+
+	cv::Mat out;
+	Extractor ext(0, {1024, 1024}, 30);
+	int result = ext.extract(softened, out);
+	assertEquals( Extractor::NEEDS_SHARPEN, result );
+	assertFalse( out.empty() );
+}
+
+TEST_CASE( "ExtractorTest/testExtractDoubleShiftBlueBleedFrameFallsBackToFourthSharpenedAdaptiveScan", "[unit]" )
+{
+	cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+	cv::Mat softened;
+	cv::resize(img, softened, cv::Size(), 0.92, 0.92, cv::INTER_LINEAR);
+	cv::resize(softened, softened, img.size(), 0, 0, cv::INTER_LINEAR);
+	cv::GaussianBlur(softened, softened, cv::Size(15, 15), 0);
+
+	std::vector<cv::Mat> ch;
+	cv::split(softened, ch);
+	cv::GaussianBlur(ch[1], ch[1], cv::Size(9, 9), 0);
+	cv::GaussianBlur(ch[2], ch[2], cv::Size(17, 17), 0);
+	ch[1] = shift_channel(ch[1], 2, 0);
+	ch[2] = shift_channel(ch[2], 4, 0);
+	cv::merge(ch, softened);
+
+	cv::Mat out;
+	Extractor ext(0, {1024, 1024}, 30);
+	int result = ext.extract(softened, out);
+	assertEquals( Extractor::NEEDS_SHARPEN, result );
+	assertFalse( out.empty() );
+}
+
+TEST_CASE( "ExtractorTest/testExtractHeavyGreenAndBlueBleedFrameFallsBackToFifthSharpenedAdaptiveScan", "[unit]" )
+{
+	cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+	cv::Mat softened;
+	cv::resize(img, softened, cv::Size(), 0.92, 0.92, cv::INTER_LINEAR);
+	cv::resize(softened, softened, img.size(), 0, 0, cv::INTER_LINEAR);
+	cv::GaussianBlur(softened, softened, cv::Size(15, 15), 0);
+
+	std::vector<cv::Mat> ch;
+	cv::split(softened, ch);
+	cv::GaussianBlur(ch[1], ch[1], cv::Size(11, 11), 0);
+	cv::GaussianBlur(ch[2], ch[2], cv::Size(17, 17), 0);
+	ch[1] = shift_channel(ch[1], 2, 0);
+	ch[2] = shift_channel(ch[2], 4, 0);
+	cv::merge(ch, softened);
+
+	cv::Mat out;
+	Extractor ext(0, {1024, 1024}, 30);
+	int result = ext.extract(softened, out);
+	assertEquals( Extractor::NEEDS_SHARPEN, result );
+	assertFalse( out.empty() );
+}
+
+TEST_CASE( "ExtractorTest/testExtractHeavyGreen13AndBlueBleedFrameFallsBackToCompoundSharpenedAdaptiveScan", "[unit]" )
+{
+	cv::Mat img = TestCimbar::loadSample("b/4cecc30f.png");
+	cv::Mat softened;
+	cv::resize(img, softened, cv::Size(), 0.92, 0.92, cv::INTER_LINEAR);
+	cv::resize(softened, softened, img.size(), 0, 0, cv::INTER_LINEAR);
+	cv::GaussianBlur(softened, softened, cv::Size(15, 15), 0);
+
+	std::vector<cv::Mat> ch;
+	cv::split(softened, ch);
+	cv::GaussianBlur(ch[1], ch[1], cv::Size(13, 13), 0);
+	cv::GaussianBlur(ch[2], ch[2], cv::Size(17, 17), 0);
+	ch[1] = shift_channel(ch[1], 2, 0);
+	ch[2] = shift_channel(ch[2], 4, 0);
+	cv::merge(ch, softened);
+
+	cv::Mat out;
+	Extractor ext(0, {1024, 1024}, 30);
+	int result = ext.extract(softened, out);
+	assertEquals( Extractor::NEEDS_SHARPEN, result );
+	assertFalse( out.empty() );
+}
+

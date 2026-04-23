@@ -62,6 +62,18 @@ cv::UMat apply_deconvish_variant(const cv::UMat& img) {
     return apply_unsharp_variant(img, 0.6, 2.8, -1.8);
 }
 
+cv::UMat apply_channel_realign_variant(const cv::UMat& img, int green_dx, int blue_dx) {
+    std::vector<cv::UMat> channels;
+    cv::split(img, channels);
+    cv::Mat green_shift = (cv::Mat_<double>(2, 3) << 1, 0, green_dx, 0, 1, 0);
+    cv::Mat blue_shift = (cv::Mat_<double>(2, 3) << 1, 0, blue_dx, 0, 1, 0);
+    cv::warpAffine(channels[1], channels[1], green_shift, channels[1].size(), cv::INTER_LINEAR, cv::BORDER_REPLICATE);
+    cv::warpAffine(channels[2], channels[2], blue_shift, channels[2].size(), cv::INTER_LINEAR, cv::BORDER_REPLICATE);
+    cv::UMat out;
+    cv::merge(channels, out);
+    return out;
+}
+
 cv::UMat get_rgb(const unsigned char* imgdata, unsigned width, unsigned height, int type, unsigned stride) {
     cv::UMat img;
     size_t row_stride = stride > 0 ? static_cast<size_t>(stride) : static_cast<size_t>(cv::Mat::AUTO_STEP);
@@ -204,16 +216,32 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
                     }
                 }
                 if (_progress.extracted_bytes == 0) {
-                    std::array<cv::UMat, 2> fourth_tier_variants = {{
+                    std::array<cv::UMat, 3> realigned_inputs = {{
+                        apply_channel_realign_variant(img, -1, -3),
+                        apply_channel_realign_variant(img, -2, -2),
+                        apply_channel_realign_variant(img, -1, -1)
+                    }};
+                    std::array<cv::UMat, 8> fourth_tier_variants = {{
                         apply_deconvish_variant(img),
-                        apply_clarity_fallback(apply_deconvish_variant(img))
+                        apply_clarity_fallback(apply_deconvish_variant(img)),
+                        apply_deconvish_variant(realigned_inputs[0]),
+                        apply_clarity_fallback(apply_deconvish_variant(realigned_inputs[0])),
+                        apply_deconvish_variant(realigned_inputs[1]),
+                        apply_clarity_fallback(apply_deconvish_variant(realigned_inputs[1])),
+                        apply_deconvish_variant(realigned_inputs[2]),
+                        apply_clarity_fallback(apply_deconvish_variant(realigned_inputs[2]))
                     }};
                     for (const auto& variant : fourth_tier_variants) {
-                        for (int color_correction : {0, 1, 2, 3, 4}) {
-                            int variant_bytes = decode_into_chunk_buffer(variant, false, color_correction, true);
-                            if (variant_bytes > 0) {
-                                _progress.extracted_bytes = variant_bytes;
-                                _progress.status_message = "decoded frame chunks after fourth-tier fallback";
+                        for (bool tight_color_sampling : {true, false}) {
+                            for (int color_correction : {0, 1, 2, 3, 4}) {
+                                int variant_bytes = decode_into_chunk_buffer(variant, false, color_correction, tight_color_sampling);
+                                if (variant_bytes > 0) {
+                                    _progress.extracted_bytes = variant_bytes;
+                                    _progress.status_message = "decoded frame chunks after fourth-tier fallback";
+                                    break;
+                                }
+                            }
+                            if (_progress.extracted_bytes > 0) {
                                 break;
                             }
                         }
