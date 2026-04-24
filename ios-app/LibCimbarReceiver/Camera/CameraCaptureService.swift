@@ -16,6 +16,7 @@ final class CameraCaptureService: NSObject, ObservableObject {
 
     @Published private(set) var authorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
     @Published private(set) var isRunning = false
+    @Published private(set) var cameraDebugSummary = ""
 
     private var isConfigured = false
     private var decodeInFlight = false
@@ -194,6 +195,64 @@ final class CameraCaptureService: NSObject, ObservableObject {
         }
 
         camera.isSubjectAreaChangeMonitoringEnabled = false
+        publishCameraDebugSummary(for: camera)
+    }
+
+    private func publishCameraDebugSummary(for camera: AVCaptureDevice) {
+        let zoom = String(format: "%.2f", camera.videoZoomFactor)
+        let fps: String
+        if camera.activeVideoMaxFrameDuration.value > 0 {
+            fps = String(format: "%.1f", Double(camera.activeVideoMaxFrameDuration.timescale) / Double(camera.activeVideoMaxFrameDuration.value))
+        } else {
+            fps = "auto"
+        }
+
+        let focusRange: String
+        if camera.isAutoFocusRangeRestrictionSupported {
+            switch camera.autoFocusRangeRestriction {
+            case .none:
+                focusRange = "none"
+            case .near:
+                focusRange = "near"
+            case .far:
+                focusRange = "far"
+            @unknown default:
+                focusRange = "unknown"
+            }
+        } else {
+            focusRange = "unsupported"
+        }
+
+        let focusMode: String
+        switch camera.focusMode {
+        case .locked:
+            focusMode = "locked"
+        case .autoFocus:
+            focusMode = "auto"
+        case .continuousAutoFocus:
+            focusMode = "continuous"
+        @unknown default:
+            focusMode = "unknown"
+        }
+
+        let exposureMode: String
+        switch camera.exposureMode {
+        case .locked:
+            exposureMode = "locked"
+        case .autoExpose:
+            exposureMode = "auto"
+        case .continuousAutoExposure:
+            exposureMode = "continuous"
+        case .custom:
+            exposureMode = "custom"
+        @unknown default:
+            exposureMode = "unknown"
+        }
+
+        let summary = "cam zoom=\(zoom)x fps=\(fps) focus=\(focusMode)/\(focusRange) exposure=\(exposureMode)"
+        DispatchQueue.main.async { [weak self] in
+            self?.cameraDebugSummary = summary
+        }
     }
 }
 

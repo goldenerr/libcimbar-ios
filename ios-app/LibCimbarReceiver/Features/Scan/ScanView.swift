@@ -93,6 +93,12 @@ struct ScanView: View {
                 Text("把码尽量放进中间取景框，贴近一些，填满大约 70% 宽度再停稳。")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.85))
+                if !camera.cameraDebugSummary.isEmpty {
+                    Text(camera.cameraDebugSummary)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.white.opacity(0.75))
+                        .textSelection(.enabled)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
