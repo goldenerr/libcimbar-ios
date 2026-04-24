@@ -82,20 +82,6 @@ cv::UMat apply_resample_variant(const cv::UMat& img, double scale) {
     return restored;
 }
 
-cv::UMat apply_center_crop_variant(const cv::UMat& img, double fill_ratio) {
-    cv::Rect roi(
-        static_cast<int>(img.cols * (1.0 - fill_ratio) * 0.5),
-        static_cast<int>(img.rows * (1.0 - fill_ratio) * 0.5),
-        std::max(1, static_cast<int>(img.cols * fill_ratio)),
-        std::max(1, static_cast<int>(img.rows * fill_ratio))
-    );
-    roi &= cv::Rect(0, 0, img.cols, img.rows);
-    cv::UMat cropped = img(roi).clone();
-    cv::UMat restored;
-    cv::resize(cropped, restored, img.size(), 0, 0, cv::INTER_LINEAR);
-    return restored;
-}
-
 cv::UMat get_rgb(const unsigned char* imgdata, unsigned width, unsigned height, int type, unsigned stride) {
     cv::UMat img;
     size_t row_stride = stride > 0 ? static_cast<size_t>(stride) : static_cast<size_t>(cv::Mat::AUTO_STEP);
@@ -184,8 +170,7 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
         refresh_decode_state();
     }
 
-    cv::UMat raw_img = get_rgb(imgdata, width, height, format <= 0 ? 3 : format, stride);
-    cv::UMat img = raw_img;
+    cv::UMat img = get_rgb(imgdata, width, height, format <= 0 ? 3 : format, stride);
 
     bool should_preprocess = false;
     bool used_clarity_fallback = false;
@@ -212,27 +197,6 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
     };
 
     _progress.extracted_bytes = decode_into_chunk_buffer(img, should_preprocess);
-    if (_progress.extracted_bytes == 0 && _progress.recognized_frame) {
-        std::array<cv::UMat, 3> display_crop_inputs = {{
-            apply_center_crop_variant(raw_img, 0.72),
-            apply_center_crop_variant(raw_img, 0.62),
-            apply_center_crop_variant(raw_img, 0.52)
-        }};
-        for (const auto& cropped_source : display_crop_inputs) {
-            cv::UMat recropped = cropped_source;
-            int recrop_extract = _extractor.extract(recropped, recropped);
-            if (!recrop_extract) {
-                continue;
-            }
-            bool recrop_preprocess = recrop_extract == Extractor::NEEDS_SHARPEN;
-            int recrop_bytes = decode_into_chunk_buffer(recropped, recrop_preprocess);
-            if (recrop_bytes > 0) {
-                _progress.extracted_bytes = recrop_bytes;
-                _progress.status_message = "decoded frame chunks after display crop fallback";
-                break;
-            }
-        }
-    }
     if (_progress.extracted_bytes == 0 && _progress.recognized_frame) {
         used_clarity_fallback = true;
         cv::UMat enhanced = apply_clarity_fallback(img);
@@ -297,15 +261,7 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
                 if (_progress.extracted_bytes == 0) {
                     cv::UMat resampled_94 = apply_resample_variant(img, 0.94);
                     cv::UMat resampled_88 = apply_resample_variant(img, 0.88);
-                    cv::UMat center_crop_72 = apply_center_crop_variant(img, 0.72);
-                    cv::UMat center_crop_62 = apply_center_crop_variant(img, 0.62);
                     std::vector<cv::UMat> second_round_inputs = {
-                        center_crop_72,
-                        center_crop_62,
-                        apply_channel_realign_variant(center_crop_72, 1, 2),
-                        apply_channel_realign_variant(center_crop_72, -1, -2),
-                        apply_channel_realign_variant(center_crop_62, 1, 2),
-                        apply_channel_realign_variant(center_crop_62, -1, -2),
                         apply_channel_realign_variant(img, 1, 3),
                         apply_channel_realign_variant(img, 2, 2),
                         apply_channel_realign_variant(img, 2, 3),
@@ -452,7 +408,6 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
             if (_progress.status_message == "decoded frame chunks after secondary clarity fallback" ||
                 _progress.status_message == "decoded frame chunks after third-tier fallback" ||
                 _progress.status_message == "decoded frame chunks after fourth-tier fallback" ||
-                _progress.status_message == "decoded frame chunks after display crop fallback" ||
                 _progress.status_message == "decoded frame chunks after second-round fallback" ||
                 _progress.status_message == "decoded frame chunks after third-round display fallback") {
                 // keep the fallback marker set above
