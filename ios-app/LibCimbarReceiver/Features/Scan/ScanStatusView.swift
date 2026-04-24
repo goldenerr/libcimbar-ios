@@ -142,6 +142,8 @@ struct ScanStatusView: View {
                 return "这一帧已经解出了 chunk，正在推进重组进度。"
             case "decoded frame chunks after clarity fallback":
                 return "这一帧原本太糊，clarity fallback 已救回部分 chunk，正在推进重组进度。"
+            case "decoded frame chunks after display crop fallback":
+                return "这一帧命中了居中取景裁切 fallback，已救回部分 chunk，正在推进重组进度。"
             case "decoded frame chunks after secondary clarity fallback":
                 return "这一帧更糊，第二档 fallback 已救回部分 chunk，正在推进重组进度。"
             case "decoded frame chunks after third-tier fallback":

@@ -62,6 +62,16 @@ cv::Mat make_display_artifact_frame(const cv::Mat& img,
     return restored;
 }
 
+cv::Mat make_centered_display_canvas(const cv::Mat& img, double fill_ratio = 0.62) {
+    cv::Mat canvas(img.rows, img.cols, img.type(), cv::Scalar(0, 0, 0));
+    cv::Mat scaled;
+    cv::resize(img, scaled, cv::Size(), fill_ratio, fill_ratio, cv::INTER_LINEAR);
+    int x = (canvas.cols - scaled.cols) / 2;
+    int y = (canvas.rows - scaled.rows) / 2;
+    scaled.copyTo(canvas(cv::Rect(x, y, scaled.cols, scaled.rows)));
+    return canvas;
+}
+
 std::vector<unsigned char> rgb_to_nv12(const cv::Mat& rgb) {
     cv::Mat yuv_i420;
     cv::cvtColor(rgb, yuv_i420, cv::COLOR_RGB2YUV_I420);
@@ -426,6 +436,21 @@ TEST_CASE("CimbarReceiveSession/processFrameRecognizesDisplayedFrameAfterExtract
                                                                         static_cast<unsigned>(displayed.step));
 
     assertTrue(progress.recognized_frame);
+}
+
+TEST_CASE("CimbarReceiveSession/processFrameRecoversCenteredDisplayCanvas", "[unit]") {
+    cimbar::ios_recv::CimbarReceiveSession session;
+    cv::Mat img = make_test_frame();
+    cv::Mat displayed = make_centered_display_canvas(img, 0.62);
+
+    cimbar::ios_recv::ProgressSnapshot progress = session.process_frame(displayed.data,
+                                                                        displayed.cols,
+                                                                        displayed.rows,
+                                                                        3,
+                                                                        static_cast<unsigned>(displayed.step));
+
+    assertTrue(progress.recognized_frame);
+    assertTrue(progress.extracted_bytes > 0);
 }
 
 TEST_CASE("CimbarReceiveSession/processFrameRecoversExtremelySoftenedLockedFrameChunks", "[unit]") {
