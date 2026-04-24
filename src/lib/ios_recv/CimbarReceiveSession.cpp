@@ -189,16 +189,52 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
 
     bool should_preprocess = false;
     bool used_clarity_fallback = false;
+    bool used_extractor_fallback = false;
     int extract_result = _extractor.extract(img, img);
+    auto adopt_extract_result = [&](cv::UMat candidate, int candidate_extract_result, bool mark_fallback) {
+        img = std::move(candidate);
+        extract_result = candidate_extract_result;
+        should_preprocess = candidate_extract_result == Extractor::NEEDS_SHARPEN;
+        _progress.recognized_frame = true;
+        _progress.needs_sharpen = should_preprocess;
+        used_extractor_fallback = mark_fallback;
+    };
     if (!extract_result) {
-        _progress.status_message = "searching";
-        return _progress;
-    }
-
-    _progress.recognized_frame = true;
-    if (extract_result == Extractor::NEEDS_SHARPEN) {
-        should_preprocess = true;
-        _progress.needs_sharpen = true;
+        std::vector<cv::UMat> extractor_fallback_inputs = {
+            apply_center_crop_variant(raw_img, 0.82),
+            apply_center_crop_variant(raw_img, 0.72),
+            apply_center_crop_variant(raw_img, 0.62),
+            apply_center_crop_variant(raw_img, 0.52),
+            apply_center_crop_variant(raw_img, 0.42),
+            apply_center_crop_variant(raw_img, 0.36),
+            apply_clarity_fallback(apply_center_crop_variant(raw_img, 0.72)),
+            apply_clarity_fallback(apply_center_crop_variant(raw_img, 0.62)),
+            apply_clarity_fallback(apply_center_crop_variant(raw_img, 0.52)),
+            apply_clarity_fallback(apply_center_crop_variant(raw_img, 0.42)),
+            apply_deconvish_variant(apply_center_crop_variant(raw_img, 0.72)),
+            apply_deconvish_variant(apply_center_crop_variant(raw_img, 0.62)),
+            apply_deconvish_variant(apply_center_crop_variant(raw_img, 0.52)),
+            apply_deconvish_variant(apply_center_crop_variant(raw_img, 0.42)),
+            apply_unsharp_variant(apply_center_crop_variant(raw_img, 0.52), 1.2, 2.6, -1.6),
+            apply_unsharp_variant(apply_center_crop_variant(raw_img, 0.42), 1.4, 2.8, -1.8),
+            apply_center_crop_variant(apply_resample_variant(raw_img, 0.94), 0.52),
+            apply_center_crop_variant(apply_resample_variant(raw_img, 0.88), 0.42)
+        };
+        for (auto candidate_source : extractor_fallback_inputs) {
+            cv::UMat candidate = candidate_source;
+            int candidate_extract_result = _extractor.extract(candidate, candidate);
+            if (!candidate_extract_result) {
+                continue;
+            }
+            adopt_extract_result(std::move(candidate), candidate_extract_result, true);
+            break;
+        }
+        if (!extract_result) {
+            _progress.status_message = "searching";
+            return _progress;
+        }
+    } else {
+        adopt_extract_result(std::move(img), extract_result, false);
     }
 
     auto decode_into_chunk_buffer = [this](const cv::UMat& frame,
@@ -213,11 +249,17 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
 
     _progress.extracted_bytes = decode_into_chunk_buffer(img, should_preprocess);
     if (_progress.extracted_bytes == 0 && _progress.recognized_frame) {
-        std::array<cv::UMat, 3> display_crop_inputs = {{
+        std::vector<cv::UMat> display_crop_inputs = {
+            apply_center_crop_variant(raw_img, 0.82),
             apply_center_crop_variant(raw_img, 0.72),
             apply_center_crop_variant(raw_img, 0.62),
-            apply_center_crop_variant(raw_img, 0.52)
-        }};
+            apply_center_crop_variant(raw_img, 0.52),
+            apply_center_crop_variant(raw_img, 0.42),
+            apply_clarity_fallback(apply_center_crop_variant(raw_img, 0.62)),
+            apply_clarity_fallback(apply_center_crop_variant(raw_img, 0.52)),
+            apply_deconvish_variant(apply_center_crop_variant(raw_img, 0.62)),
+            apply_deconvish_variant(apply_center_crop_variant(raw_img, 0.52))
+        };
         for (const auto& cropped_source : display_crop_inputs) {
             cv::UMat recropped = cropped_source;
             int recrop_extract = _extractor.extract(recropped, recropped);

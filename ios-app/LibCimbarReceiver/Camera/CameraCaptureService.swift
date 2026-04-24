@@ -5,9 +5,9 @@ final class CameraCaptureService: NSObject, ObservableObject {
     let session = AVCaptureSession()
 
     private enum DisplayScanTuning {
-        static let preferredZoom: CGFloat = 3.0
-        static let minimumZoomToApply: CGFloat = 2.0
-        static let preferredFramesPerSecond: Int32 = 20
+        static let preferredZoom: CGFloat = 2.0
+        static let minimumZoomToApply: CGFloat = 1.25
+        static let preferredFramesPerSecond: Int32 = 24
     }
 
     private let output = AVCaptureVideoDataOutput()
@@ -165,7 +165,7 @@ final class CameraCaptureService: NSObject, ObservableObject {
         }
 
         if camera.isAutoFocusRangeRestrictionSupported {
-            camera.autoFocusRangeRestriction = .near
+            camera.autoFocusRangeRestriction = .none
         }
 
         if camera.isSmoothAutoFocusSupported {
