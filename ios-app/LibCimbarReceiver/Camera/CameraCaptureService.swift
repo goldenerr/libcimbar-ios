@@ -4,6 +4,12 @@ import SwiftUI
 final class CameraCaptureService: NSObject, ObservableObject {
     let session = AVCaptureSession()
 
+    private enum DisplayScanTuning {
+        static let preferredZoom: CGFloat = 3.0
+        static let minimumZoomToApply: CGFloat = 2.0
+        static let preferredFramesPerSecond: Int32 = 20
+    }
+
     private let output = AVCaptureVideoDataOutput()
     private let captureQueue = DispatchQueue(label: "camera.capture.queue")
     private let decodeQueue = DispatchQueue(label: "camera.decode.queue")
@@ -102,13 +108,17 @@ final class CameraCaptureService: NSObject, ObservableObject {
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
         ]
         output.setSampleBufferDelegate(self, queue: captureQueue)
+        if let connection = output.connection(with: .video) {
+            connection.videoOrientation = .portrait
+            if connection.isVideoMirroringSupported {
+                connection.isVideoMirrored = false
+            }
+        }
 
         guard session.canAddOutput(output) else {
             throw CameraCaptureError.cannotAddOutput
         }
         session.addOutput(output)
-
-        output.connection(with: .video)?.videoOrientation = .portrait
     }
 
     private func enqueueForDecode(_ sampleBuffer: CMSampleBuffer) {
@@ -170,13 +180,20 @@ final class CameraCaptureService: NSObject, ObservableObject {
             camera.whiteBalanceMode = .continuousAutoWhiteBalance
         }
 
-        let preferredZoom: CGFloat = 2.0
         let maxZoom = min(camera.activeFormat.videoMaxZoomFactor, camera.maxAvailableVideoZoomFactor)
-        if maxZoom >= 1.5 {
-            camera.videoZoomFactor = min(preferredZoom, maxZoom)
+        if maxZoom >= DisplayScanTuning.minimumZoomToApply {
+            camera.videoZoomFactor = min(DisplayScanTuning.preferredZoom, maxZoom)
         }
 
-        camera.isSubjectAreaChangeMonitoringEnabled = true
+        let preferredFrameDuration = CMTime(value: 1, timescale: DisplayScanTuning.preferredFramesPerSecond)
+        if camera.activeFormat.videoSupportedFrameRateRanges.contains(where: {
+            $0.minFrameDuration <= preferredFrameDuration && $0.maxFrameDuration >= preferredFrameDuration
+        }) {
+            camera.activeVideoMinFrameDuration = preferredFrameDuration
+            camera.activeVideoMaxFrameDuration = preferredFrameDuration
+        }
+
+        camera.isSubjectAreaChangeMonitoringEnabled = false
     }
 }
 

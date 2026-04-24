@@ -12,6 +12,8 @@ struct ScanView: View {
                 CameraPreviewView(session: camera.session)
                     .ignoresSafeArea()
 
+                displayScanGuide
+
                 VStack(spacing: 16) {
                     topControls
                     Spacer()
@@ -84,6 +86,18 @@ struct ScanView: View {
 
     private var topControls: some View {
         HStack {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("显示器扫码模式", systemImage: "display")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Text("把码尽量放进中间取景框，贴近一些，填满大约 70% 宽度再停稳。")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.85))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+
             Spacer()
 
             Button {
@@ -100,6 +114,36 @@ struct ScanView: View {
             .background(.ultraThinMaterial, in: Capsule())
             .accessibilityHint("Placeholder toggle until torch controls are wired up.")
         }
+    }
+
+    private var displayScanGuide: some View {
+        GeometryReader { geometry in
+            let width = min(geometry.size.width * 0.82, 340)
+            let height = width * 0.68
+
+            VStack {
+                Spacer()
+                RoundedRectangle(cornerRadius: 24)
+                    .strokeBorder(Color.green.opacity(0.92), lineWidth: 3)
+                    .frame(width: width, height: height)
+                    .background(
+                        RoundedRectangle(cornerRadius: 24)
+                            .fill(Color.black.opacity(0.10))
+                    )
+                    .overlay(alignment: .top) {
+                        Text("把屏幕上的码对准这里")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .offset(y: -18)
+                    }
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 
     private func successBanner(for file: ReceivedFile) -> some View {
