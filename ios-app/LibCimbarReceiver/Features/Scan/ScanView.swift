@@ -4,7 +4,6 @@ import SwiftUI
 struct ScanView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var camera = CameraCaptureService()
-    @State private var isFlashlightPlaceholderEnabled = false
 
     var body: some View {
         NavigationStack {
@@ -90,7 +89,9 @@ struct ScanView: View {
                 Label("显示器扫码模式", systemImage: "display")
                     .font(.headline)
                     .foregroundStyle(.white)
-                Text("先贴近一些让它占到大约 70% 宽度；如果一直锁不住，就先别动稳住约 2 秒，让相机自动切到 Windows 档。")
+                Text(camera.prefersWindowsDisplayTuning
+                    ? "当前已切到 Windows 屏幕档：更宽松的缩放/对焦。Mac 屏幕请切回通用档。"
+                    : "默认先用通用档。扫 Windows 显示器时，点右侧 Windows 档再试。")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.85))
             }
@@ -101,18 +102,18 @@ struct ScanView: View {
             Spacer()
 
             Button {
-                isFlashlightPlaceholderEnabled.toggle()
+                camera.setWindowsDisplayTuningEnabled(!camera.prefersWindowsDisplayTuning)
             } label: {
                 Label(
-                    isFlashlightPlaceholderEnabled ? "Torch Soon" : "Flashlight",
-                    systemImage: isFlashlightPlaceholderEnabled ? "flashlight.on.fill" : "flashlight.off.fill"
+                    camera.prefersWindowsDisplayTuning ? "通用档" : "Windows 档",
+                    systemImage: camera.prefersWindowsDisplayTuning ? "arrow.uturn.backward.circle" : "laptopcomputer.and.arrow.down"
                 )
             }
             .buttonStyle(.bordered)
             .tint(.white)
             .foregroundStyle(.white)
             .background(.ultraThinMaterial, in: Capsule())
-            .accessibilityHint("Placeholder toggle until torch controls are wired up.")
+            .accessibilityHint("切换显示器扫码参数；Windows 显示器可尝试 Windows 档。")
         }
     }
 

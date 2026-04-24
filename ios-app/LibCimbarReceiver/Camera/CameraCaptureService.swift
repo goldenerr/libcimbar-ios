@@ -45,9 +45,7 @@ final class CameraCaptureService: NSObject, ObservableObject {
         }
     }
 
-    private enum DisplayScanTuning {
-        static let searchFallbackAfter: TimeInterval = 2.2
-    }
+    @Published private(set) var prefersWindowsDisplayTuning = false
 
     private let output = AVCaptureVideoDataOutput()
     private let captureQueue = DispatchQueue(label: "camera.capture.queue")
@@ -61,7 +59,6 @@ final class CameraCaptureService: NSObject, ObservableObject {
     private var pendingSampleBuffer: CMSampleBuffer?
     private var activeCamera: AVCaptureDevice?
     private var activeDisplayScanProfile: DisplayScanProfile = .macLock
-    private var searchingSinceUptime: TimeInterval?
 
     var onSampleBuffer: ((CMSampleBuffer) -> ScanSnapshot?)?
 
@@ -90,7 +87,7 @@ final class CameraCaptureService: NSObject, ObservableObject {
             guard let self else { return }
             self.pendingSampleBuffer = nil
             self.decodeInFlight = false
-            self.resetDisplayScanProfile(applyToActiveCamera: true)
+            self.applyCurrentDisplayScanProfileIfNeeded()
             guard self.session.isRunning else {
                 DispatchQueue.main.async {
                     self.isRunning = false
@@ -101,6 +98,18 @@ final class CameraCaptureService: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 self.isRunning = false
             }
+        }
+    }
+
+    func setWindowsDisplayTuningEnabled(_ enabled: Bool) {
+        DispatchQueue.main.async {
+            self.prefersWindowsDisplayTuning = enabled
+        }
+
+        captureQueue.async { [weak self] in
+            guard let self else { return }
+            self.activeDisplayScanProfile = enabled ? .windowsFallback : .macLock
+            self.applyCurrentDisplayScanProfileIfNeeded()
         }
     }
 
@@ -177,10 +186,9 @@ final class CameraCaptureService: NSObject, ObservableObject {
     private func dispatchToDecode(_ sampleBuffer: CMSampleBuffer) {
         let callback = onSampleBuffer
         decodeQueue.async { [weak self] in
-            let snapshot = callback?(sampleBuffer)
+            _ = callback?(sampleBuffer)
             self?.captureQueue.async {
                 guard let self else { return }
-                self.updateDisplayScanProfile(using: snapshot)
                 if let pending = self.pendingSampleBuffer {
                     self.pendingSampleBuffer = nil
                     self.dispatchToDecode(pending)
@@ -220,20 +228,17 @@ final class CameraCaptureService: NSObject, ObservableObject {
             camera.whiteBalanceMode = .continuousAutoWhiteBalance
         }
 
-        resetDisplayScanProfile()
+        activeDisplayScanProfile = prefersWindowsDisplayTuning ? .windowsFallback : .macLock
         applyDisplayScanProfile(activeDisplayScanProfile, to: camera)
         activeCamera = camera
     }
 
-    private func resetDisplayScanProfile(applyToActiveCamera: Bool = false) {
-        activeDisplayScanProfile = .macLock
-        searchingSinceUptime = ProcessInfo.processInfo.systemUptime
-
-        guard applyToActiveCamera, let camera = activeCamera else { return }
+    private func applyCurrentDisplayScanProfileIfNeeded() {
+        guard let camera = activeCamera else { return }
 
         do {
             try camera.lockForConfiguration()
-            applyDisplayScanProfile(.macLock, to: camera)
+            applyDisplayScanProfile(activeDisplayScanProfile, to: camera)
             camera.unlockForConfiguration()
         } catch {
             return
@@ -259,38 +264,6 @@ final class CameraCaptureService: NSObject, ObservableObject {
         }
 
         camera.isSubjectAreaChangeMonitoringEnabled = false
-    }
-
-    private func updateDisplayScanProfile(using snapshot: ScanSnapshot?) {
-        guard let camera = activeCamera else { return }
-
-        let now = ProcessInfo.processInfo.systemUptime
-
-        if let snapshot, (snapshot.recognizedFrame || snapshot.extractedBytes > 0) {
-            searchingSinceUptime = nil
-            return
-        }
-
-        if activeDisplayScanProfile == .windowsFallback {
-            return
-        }
-
-        if searchingSinceUptime == nil {
-            searchingSinceUptime = now
-        }
-
-        guard now - (searchingSinceUptime ?? now) >= DisplayScanTuning.searchFallbackAfter else {
-            return
-        }
-
-        do {
-            try camera.lockForConfiguration()
-            applyDisplayScanProfile(.windowsFallback, to: camera)
-            camera.unlockForConfiguration()
-            activeDisplayScanProfile = .windowsFallback
-        } catch {
-            return
-        }
     }
 }
 
