@@ -4,10 +4,50 @@ import SwiftUI
 final class CameraCaptureService: NSObject, ObservableObject {
     let session = AVCaptureSession()
 
+    private enum DisplayScanProfile {
+        case macLock
+        case windowsFallback
+
+        var preferredZoom: CGFloat {
+            switch self {
+            case .macLock:
+                return 3.0
+            case .windowsFallback:
+                return 2.0
+            }
+        }
+
+        var minimumZoomToApply: CGFloat {
+            switch self {
+            case .macLock:
+                return 2.0
+            case .windowsFallback:
+                return 1.25
+            }
+        }
+
+        var preferredFramesPerSecond: Int32 {
+            switch self {
+            case .macLock:
+                return 20
+            case .windowsFallback:
+                return 24
+            }
+        }
+
+        var autoFocusRangeRestriction: AVCaptureDevice.AutoFocusRangeRestriction {
+            switch self {
+            case .macLock:
+                return .near
+            case .windowsFallback:
+                return .none
+            }
+        }
+    }
+
     private enum DisplayScanTuning {
-        static let preferredZoom: CGFloat = 2.6
-        static let minimumZoomToApply: CGFloat = 1.5
-        static let preferredFramesPerSecond: Int32 = 20
+        static let searchProfileSwitchInterval: TimeInterval = 2.0
+        static let recognizedFallbackHoldInterval: TimeInterval = 1.2
     }
 
     private let output = AVCaptureVideoDataOutput()
@@ -20,6 +60,11 @@ final class CameraCaptureService: NSObject, ObservableObject {
     private var isConfigured = false
     private var decodeInFlight = false
     private var pendingSampleBuffer: CMSampleBuffer?
+    private var activeCamera: AVCaptureDevice?
+    private var activeDisplayScanProfile: DisplayScanProfile = .macLock
+    private var lastProfileSwitchUptime = 0.0
+    private var searchingSinceUptime: TimeInterval?
+    private var fallbackHoldUntilUptime = 0.0
 
     var onSampleBuffer: ((CMSampleBuffer) -> ScanSnapshot?)?
 
@@ -48,6 +93,7 @@ final class CameraCaptureService: NSObject, ObservableObject {
             guard let self else { return }
             self.pendingSampleBuffer = nil
             self.decodeInFlight = false
+            self.resetDynamicDisplayScanState(applyToActiveCamera: true)
             guard self.session.isRunning else {
                 DispatchQueue.main.async {
                     self.isRunning = false
@@ -134,9 +180,10 @@ final class CameraCaptureService: NSObject, ObservableObject {
     private func dispatchToDecode(_ sampleBuffer: CMSampleBuffer) {
         let callback = onSampleBuffer
         decodeQueue.async { [weak self] in
-            _ = callback?(sampleBuffer)
+            let snapshot = callback?(sampleBuffer)
             self?.captureQueue.async {
                 guard let self else { return }
+                self.updateDisplayScanProfile(using: snapshot)
                 if let pending = self.pendingSampleBuffer {
                     self.pendingSampleBuffer = nil
                     self.dispatchToDecode(pending)
@@ -164,10 +211,6 @@ final class CameraCaptureService: NSObject, ObservableObject {
             camera.focusMode = .autoFocus
         }
 
-        if camera.isAutoFocusRangeRestrictionSupported {
-            camera.autoFocusRangeRestriction = .near
-        }
-
         if camera.isSmoothAutoFocusSupported {
             camera.isSmoothAutoFocusEnabled = false
         }
@@ -180,12 +223,40 @@ final class CameraCaptureService: NSObject, ObservableObject {
             camera.whiteBalanceMode = .continuousAutoWhiteBalance
         }
 
-        let maxZoom = min(camera.activeFormat.videoMaxZoomFactor, camera.maxAvailableVideoZoomFactor)
-        if maxZoom >= DisplayScanTuning.minimumZoomToApply {
-            camera.videoZoomFactor = min(DisplayScanTuning.preferredZoom, maxZoom)
+        resetDynamicDisplayScanState()
+        applyDisplayScanProfile(activeDisplayScanProfile, to: camera)
+        activeCamera = camera
+    }
+
+    private func resetDynamicDisplayScanState(applyToActiveCamera: Bool = false) {
+        activeDisplayScanProfile = .macLock
+        let now = ProcessInfo.processInfo.systemUptime
+        lastProfileSwitchUptime = now
+        searchingSinceUptime = now
+        fallbackHoldUntilUptime = 0
+
+        guard applyToActiveCamera, let camera = activeCamera else { return }
+
+        do {
+            try camera.lockForConfiguration()
+            applyDisplayScanProfile(.macLock, to: camera)
+            camera.unlockForConfiguration()
+        } catch {
+            return
+        }
+    }
+
+    private func applyDisplayScanProfile(_ profile: DisplayScanProfile, to camera: AVCaptureDevice) {
+        if camera.isAutoFocusRangeRestrictionSupported {
+            camera.autoFocusRangeRestriction = profile.autoFocusRangeRestriction
         }
 
-        let preferredFrameDuration = CMTime(value: 1, timescale: DisplayScanTuning.preferredFramesPerSecond)
+        let maxZoom = min(camera.activeFormat.videoMaxZoomFactor, camera.maxAvailableVideoZoomFactor)
+        if maxZoom >= profile.minimumZoomToApply {
+            camera.videoZoomFactor = min(profile.preferredZoom, maxZoom)
+        }
+
+        let preferredFrameDuration = CMTime(value: 1, timescale: profile.preferredFramesPerSecond)
         if camera.activeFormat.videoSupportedFrameRateRanges.contains(where: {
             $0.minFrameDuration <= preferredFrameDuration && $0.maxFrameDuration >= preferredFrameDuration
         }) {
@@ -194,6 +265,59 @@ final class CameraCaptureService: NSObject, ObservableObject {
         }
 
         camera.isSubjectAreaChangeMonitoringEnabled = false
+    }
+
+    private func updateDisplayScanProfile(using snapshot: ScanSnapshot?) {
+        guard let camera = activeCamera else { return }
+
+        let now = ProcessInfo.processInfo.systemUptime
+        var targetProfile = activeDisplayScanProfile
+
+        if let snapshot {
+            if snapshot.extractedBytes > 0 {
+                searchingSinceUptime = nil
+                fallbackHoldUntilUptime = max(fallbackHoldUntilUptime, now + DisplayScanTuning.recognizedFallbackHoldInterval)
+                return
+            }
+
+            if snapshot.recognizedFrame {
+                searchingSinceUptime = nil
+                fallbackHoldUntilUptime = now + DisplayScanTuning.recognizedFallbackHoldInterval
+                targetProfile = .windowsFallback
+            } else {
+                if searchingSinceUptime == nil {
+                    searchingSinceUptime = now
+                }
+
+                let timeSinceSwitch = now - lastProfileSwitchUptime
+                let timeSearching = now - (searchingSinceUptime ?? now)
+                let reachedSwitchInterval = timeSearching >= DisplayScanTuning.searchProfileSwitchInterval
+                    && timeSinceSwitch >= DisplayScanTuning.searchProfileSwitchInterval
+
+                if activeDisplayScanProfile == .windowsFallback {
+                    if now >= fallbackHoldUntilUptime && timeSinceSwitch >= DisplayScanTuning.searchProfileSwitchInterval {
+                        targetProfile = .macLock
+                        searchingSinceUptime = now
+                    }
+                } else if reachedSwitchInterval {
+                    targetProfile = .windowsFallback
+                    fallbackHoldUntilUptime = now + DisplayScanTuning.recognizedFallbackHoldInterval
+                    searchingSinceUptime = now
+                }
+            }
+        }
+
+        guard targetProfile != activeDisplayScanProfile else { return }
+
+        do {
+            try camera.lockForConfiguration()
+            applyDisplayScanProfile(targetProfile, to: camera)
+            camera.unlockForConfiguration()
+            activeDisplayScanProfile = targetProfile
+            lastProfileSwitchUptime = now
+        } catch {
+            return
+        }
     }
 }
 
