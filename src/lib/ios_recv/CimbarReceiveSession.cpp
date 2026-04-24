@@ -397,7 +397,61 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
                     }
                 }
                 if (_progress.extracted_bytes == 0) {
-                    _progress.status_message = "recognized frame without chunks after third-round display fallback";
+                    for (double fill_ratio : {0.72, 0.62, 0.52}) {
+                        cv::UMat display_crop = apply_center_crop_variant(raw_img, fill_ratio);
+                        cv::UMat extracted_display_crop = display_crop;
+                        int display_crop_extract_result = _extractor.extract(extracted_display_crop, extracted_display_crop);
+                        if (!display_crop_extract_result) {
+                            continue;
+                        }
+
+                        bool display_crop_preprocess = display_crop_extract_result == Extractor::NEEDS_SHARPEN;
+                        cv::UMat display_crop_resampled_94 = apply_resample_variant(extracted_display_crop, 0.94);
+                        cv::UMat display_crop_resampled_88 = apply_resample_variant(extracted_display_crop, 0.88);
+                        std::vector<cv::UMat> display_crop_variants = {
+                            extracted_display_crop,
+                            apply_deconvish_variant(extracted_display_crop),
+                            apply_clarity_fallback(apply_deconvish_variant(extracted_display_crop)),
+                            display_crop_resampled_94,
+                            display_crop_resampled_88,
+                            apply_channel_realign_variant(display_crop_resampled_94, 1, 3),
+                            apply_channel_realign_variant(display_crop_resampled_94, -1, -3),
+                            apply_channel_realign_variant(display_crop_resampled_88, 1, 3),
+                            apply_channel_realign_variant(display_crop_resampled_88, -1, -3),
+                            apply_clarity_fallback(apply_deconvish_variant(display_crop_resampled_94)),
+                            apply_clarity_fallback(apply_deconvish_variant(display_crop_resampled_88))
+                        };
+                        std::array<bool, 2> preprocess_options = {{display_crop_preprocess, !display_crop_preprocess}};
+                        for (const auto& variant : display_crop_variants) {
+                            for (bool preprocess : preprocess_options) {
+                                for (bool tight_color_sampling : {true, false}) {
+                                    for (int color_correction : {2, 1, 3, 0, 4}) {
+                                        int variant_bytes = decode_into_chunk_buffer(variant, preprocess, color_correction, tight_color_sampling);
+                                        if (variant_bytes > 0) {
+                                            _progress.extracted_bytes = variant_bytes;
+                                            _progress.status_message = "decoded frame chunks after display crop fallback";
+                                            break;
+                                        }
+                                    }
+                                    if (_progress.extracted_bytes > 0) {
+                                        break;
+                                    }
+                                }
+                                if (_progress.extracted_bytes > 0) {
+                                    break;
+                                }
+                            }
+                            if (_progress.extracted_bytes > 0) {
+                                break;
+                            }
+                        }
+                        if (_progress.extracted_bytes > 0) {
+                            break;
+                        }
+                    }
+                }
+                if (_progress.extracted_bytes == 0) {
+                    _progress.status_message = "recognized frame without chunks after display crop fallback";
                 }
             }
         }
@@ -438,7 +492,8 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
                 _progress.status_message == "decoded frame chunks after third-tier fallback" ||
                 _progress.status_message == "decoded frame chunks after fourth-tier fallback" ||
                 _progress.status_message == "decoded frame chunks after second-round fallback" ||
-                _progress.status_message == "decoded frame chunks after third-round display fallback") {
+                _progress.status_message == "decoded frame chunks after third-round display fallback" ||
+                _progress.status_message == "decoded frame chunks after display crop fallback") {
                 // keep the fallback marker set above
             } else {
                 _progress.status_message = used_clarity_fallback
@@ -450,7 +505,8 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
         _progress.phase = SessionPhase::Detecting;
         if (_progress.status_message == "recognized frame without chunks after fourth-tier fallback" ||
             _progress.status_message == "recognized frame without chunks after second-round fallback" ||
-            _progress.status_message == "recognized frame without chunks after third-round display fallback") {
+            _progress.status_message == "recognized frame without chunks after third-round display fallback" ||
+            _progress.status_message == "recognized frame without chunks after display crop fallback") {
             // keep the fourth-tier exhaustion marker set above
         } else {
             _progress.status_message = used_clarity_fallback
