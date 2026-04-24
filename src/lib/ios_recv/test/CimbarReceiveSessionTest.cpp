@@ -62,6 +62,20 @@ cv::Mat make_display_artifact_frame(const cv::Mat& img,
     return restored;
 }
 
+cv::Mat make_centered_display_canvas(const cv::Mat& img, double fill_ratio = 0.62) {
+    cv::Mat canvas(img.size(), img.type(), cv::Scalar::all(0));
+    int target_width = std::max(1, static_cast<int>(img.cols * fill_ratio));
+    int target_height = std::max(1, static_cast<int>(img.rows * fill_ratio));
+
+    cv::Mat resized;
+    cv::resize(img, resized, cv::Size(target_width, target_height), 0, 0, cv::INTER_LINEAR);
+
+    int x = (canvas.cols - resized.cols) / 2;
+    int y = (canvas.rows - resized.rows) / 2;
+    resized.copyTo(canvas(cv::Rect(x, y, resized.cols, resized.rows)));
+    return canvas;
+}
+
 std::vector<unsigned char> rgb_to_nv12(const cv::Mat& rgb) {
     cv::Mat yuv_i420;
     cv::cvtColor(rgb, yuv_i420, cv::COLOR_RGB2YUV_I420);
@@ -418,6 +432,21 @@ TEST_CASE("CimbarReceiveSession/processFrameRecognizesDisplayedFrameAfterExtract
     cv::Mat img = make_test_frame();
 
     cv::Mat displayed = make_display_artifact_frame(img);
+
+    cimbar::ios_recv::ProgressSnapshot progress = session.process_frame(displayed.data,
+                                                                        displayed.cols,
+                                                                        displayed.rows,
+                                                                        3,
+                                                                        static_cast<unsigned>(displayed.step));
+
+    assertTrue(progress.recognized_frame);
+}
+
+TEST_CASE("CimbarReceiveSession/processFrameRecognizesCenteredDisplayFrameAfterPrelockCropFallback", "[unit]") {
+    cimbar::ios_recv::CimbarReceiveSession session;
+    cv::Mat img = make_test_frame();
+
+    cv::Mat displayed = make_centered_display_canvas(img, 0.62);
 
     cimbar::ios_recv::ProgressSnapshot progress = session.process_frame(displayed.data,
                                                                         displayed.cols,

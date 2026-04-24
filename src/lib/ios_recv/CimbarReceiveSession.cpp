@@ -82,6 +82,20 @@ cv::UMat apply_resample_variant(const cv::UMat& img, double scale) {
     return restored;
 }
 
+cv::UMat apply_center_crop_variant(const cv::UMat& img, double fill_ratio) {
+    cv::Rect roi(
+        static_cast<int>(img.cols * (1.0 - fill_ratio) * 0.5),
+        static_cast<int>(img.rows * (1.0 - fill_ratio) * 0.5),
+        std::max(1, static_cast<int>(img.cols * fill_ratio)),
+        std::max(1, static_cast<int>(img.rows * fill_ratio))
+    );
+    roi &= cv::Rect(0, 0, img.cols, img.rows);
+    cv::UMat cropped = img(roi).clone();
+    cv::UMat restored;
+    cv::resize(cropped, restored, img.size(), 0, 0, cv::INTER_LINEAR);
+    return restored;
+}
+
 cv::UMat get_rgb(const unsigned char* imgdata, unsigned width, unsigned height, int type, unsigned stride) {
     cv::UMat img;
     size_t row_stride = stride > 0 ? static_cast<size_t>(stride) : static_cast<size_t>(cv::Mat::AUTO_STEP);
@@ -170,11 +184,26 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
         refresh_decode_state();
     }
 
-    cv::UMat img = get_rgb(imgdata, width, height, format <= 0 ? 3 : format, stride);
+    cv::UMat raw_img = get_rgb(imgdata, width, height, format <= 0 ? 3 : format, stride);
+    cv::UMat img = raw_img;
 
     bool should_preprocess = false;
     bool used_clarity_fallback = false;
     int extract_result = _extractor.extract(img, img);
+    if (!extract_result) {
+        std::array<cv::UMat, 2> prelock_display_crops = {{
+            apply_center_crop_variant(raw_img, 0.72),
+            apply_center_crop_variant(raw_img, 0.62)
+        }};
+        for (const auto& cropped : prelock_display_crops) {
+            cv::UMat candidate = cropped;
+            extract_result = _extractor.extract(candidate, candidate);
+            if (extract_result) {
+                img = candidate;
+                break;
+            }
+        }
+    }
     if (!extract_result) {
         _progress.status_message = "searching";
         return _progress;
