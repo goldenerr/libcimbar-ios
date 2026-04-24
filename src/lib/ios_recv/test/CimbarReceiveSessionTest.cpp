@@ -47,6 +47,21 @@ cv::Mat make_chroma_bleed_softened_frame(const cv::Mat& img,
     return out;
 }
 
+cv::Mat make_display_artifact_frame(const cv::Mat& img,
+                                    double scale = 0.84,
+                                    int base_blur = 17,
+                                    int green_blur = 11,
+                                    int blue_blur = 23,
+                                    int green_shift = -2,
+                                    int blue_shift = -3) {
+    cv::Mat softened = make_chroma_bleed_softened_frame(img, scale, base_blur, green_blur, blue_blur, green_shift, blue_shift);
+    cv::Mat downscaled;
+    cv::Mat restored;
+    cv::resize(softened, downscaled, cv::Size(), 0.90, 0.90, cv::INTER_AREA);
+    cv::resize(downscaled, restored, img.size(), 0, 0, cv::INTER_LINEAR);
+    return restored;
+}
+
 std::vector<unsigned char> rgb_to_nv12(const cv::Mat& rgb) {
     cv::Mat yuv_i420;
     cv::cvtColor(rgb, yuv_i420, cv::COLOR_RGB2YUV_I420);
@@ -396,6 +411,21 @@ TEST_CASE("CimbarReceiveSession/processFrameRecoversMirroredResampledChromaBleed
     assertTrue(progress.needs_sharpen);
     assertTrue(progress.extracted_bytes > 0);
     assertTrue(progress.scanned_chunks > 0);
+}
+
+TEST_CASE("CimbarReceiveSession/processFrameRecognizesDisplayedFrameAfterExtractorFallback", "[unit]") {
+    cimbar::ios_recv::CimbarReceiveSession session;
+    cv::Mat img = make_test_frame();
+
+    cv::Mat displayed = make_display_artifact_frame(img);
+
+    cimbar::ios_recv::ProgressSnapshot progress = session.process_frame(displayed.data,
+                                                                        displayed.cols,
+                                                                        displayed.rows,
+                                                                        3,
+                                                                        static_cast<unsigned>(displayed.step));
+
+    assertTrue(progress.recognized_frame);
 }
 
 TEST_CASE("CimbarReceiveSession/processFrameRecoversExtremelySoftenedLockedFrameChunks", "[unit]") {

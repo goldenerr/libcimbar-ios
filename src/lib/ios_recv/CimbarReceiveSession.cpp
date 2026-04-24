@@ -266,14 +266,22 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
                         apply_channel_realign_variant(img, 2, 2),
                         apply_channel_realign_variant(img, 2, 3),
                         apply_channel_realign_variant(img, 3, 2),
+                        apply_channel_realign_variant(img, -1, -3),
+                        apply_channel_realign_variant(img, -2, -2),
+                        apply_channel_realign_variant(img, -2, -3),
+                        apply_channel_realign_variant(img, -3, -2),
                         resampled_94,
                         resampled_88,
                         apply_channel_realign_variant(resampled_94, 1, 3),
                         apply_channel_realign_variant(resampled_94, 2, 2),
                         apply_channel_realign_variant(resampled_94, 2, 3),
+                        apply_channel_realign_variant(resampled_94, -1, -3),
+                        apply_channel_realign_variant(resampled_94, -2, -2),
                         apply_channel_realign_variant(resampled_88, 1, 3),
                         apply_channel_realign_variant(resampled_88, 2, 2),
-                        apply_channel_realign_variant(resampled_88, 2, 3)
+                        apply_channel_realign_variant(resampled_88, 2, 3),
+                        apply_channel_realign_variant(resampled_88, -1, -3),
+                        apply_channel_realign_variant(resampled_88, -2, -2)
                     };
                     for (const auto& source : second_round_inputs) {
                         std::array<cv::UMat, 2> second_round_variants = {{
@@ -281,12 +289,17 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
                             apply_clarity_fallback(apply_deconvish_variant(source))
                         }};
                         for (const auto& variant : second_round_variants) {
-                            for (bool tight_color_sampling : {true, false}) {
-                                for (int color_correction : {0, 1, 2, 3, 4}) {
-                                    int variant_bytes = decode_into_chunk_buffer(variant, false, color_correction, tight_color_sampling);
-                                    if (variant_bytes > 0) {
-                                        _progress.extracted_bytes = variant_bytes;
-                                        _progress.status_message = "decoded frame chunks after second-round fallback";
+                            for (bool preprocess : {false, true}) {
+                                for (bool tight_color_sampling : {true, false}) {
+                                    for (int color_correction : {0, 1, 2, 3, 4}) {
+                                        int variant_bytes = decode_into_chunk_buffer(variant, preprocess, color_correction, tight_color_sampling);
+                                        if (variant_bytes > 0) {
+                                            _progress.extracted_bytes = variant_bytes;
+                                            _progress.status_message = "decoded frame chunks after second-round fallback";
+                                            break;
+                                        }
+                                    }
+                                    if (_progress.extracted_bytes > 0) {
                                         break;
                                     }
                                 }
@@ -304,7 +317,58 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
                     }
                 }
                 if (_progress.extracted_bytes == 0) {
-                    _progress.status_message = "recognized frame without chunks after second-round fallback";
+                    cv::UMat resampled_82 = apply_resample_variant(img, 0.82);
+                    cv::UMat resampled_76 = apply_resample_variant(img, 0.76);
+                    std::vector<cv::UMat> third_round_inputs = {
+                        resampled_82,
+                        resampled_76,
+                        apply_channel_realign_variant(resampled_82, 2, 3),
+                        apply_channel_realign_variant(resampled_82, 3, 2),
+                        apply_channel_realign_variant(resampled_82, -2, -3),
+                        apply_channel_realign_variant(resampled_82, -3, -2),
+                        apply_channel_realign_variant(resampled_76, 2, 3),
+                        apply_channel_realign_variant(resampled_76, 3, 2),
+                        apply_channel_realign_variant(resampled_76, -2, -3),
+                        apply_channel_realign_variant(resampled_76, -3, -2),
+                        apply_unsharp_variant(resampled_82, 1.4, 2.8, -1.8),
+                        apply_unsharp_variant(resampled_76, 1.6, 3.0, -2.0)
+                    };
+                    for (const auto& source : third_round_inputs) {
+                        std::array<cv::UMat, 3> third_round_variants = {{
+                            source,
+                            apply_deconvish_variant(source),
+                            apply_clarity_fallback(apply_deconvish_variant(source))
+                        }};
+                        for (const auto& variant : third_round_variants) {
+                            for (bool preprocess : {false, true}) {
+                                for (bool tight_color_sampling : {true, false}) {
+                                    for (int color_correction : {0, 1, 2, 3, 4}) {
+                                        int variant_bytes = decode_into_chunk_buffer(variant, preprocess, color_correction, tight_color_sampling);
+                                        if (variant_bytes > 0) {
+                                            _progress.extracted_bytes = variant_bytes;
+                                            _progress.status_message = "decoded frame chunks after third-round display fallback";
+                                            break;
+                                        }
+                                    }
+                                    if (_progress.extracted_bytes > 0) {
+                                        break;
+                                    }
+                                }
+                                if (_progress.extracted_bytes > 0) {
+                                    break;
+                                }
+                            }
+                            if (_progress.extracted_bytes > 0) {
+                                break;
+                            }
+                        }
+                        if (_progress.extracted_bytes > 0) {
+                            break;
+                        }
+                    }
+                }
+                if (_progress.extracted_bytes == 0) {
+                    _progress.status_message = "recognized frame without chunks after third-round display fallback";
                 }
             }
         }
@@ -344,7 +408,8 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
             if (_progress.status_message == "decoded frame chunks after secondary clarity fallback" ||
                 _progress.status_message == "decoded frame chunks after third-tier fallback" ||
                 _progress.status_message == "decoded frame chunks after fourth-tier fallback" ||
-                _progress.status_message == "decoded frame chunks after second-round fallback") {
+                _progress.status_message == "decoded frame chunks after second-round fallback" ||
+                _progress.status_message == "decoded frame chunks after third-round display fallback") {
                 // keep the fallback marker set above
             } else {
                 _progress.status_message = used_clarity_fallback
@@ -355,7 +420,8 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
     } else {
         _progress.phase = SessionPhase::Detecting;
         if (_progress.status_message == "recognized frame without chunks after fourth-tier fallback" ||
-            _progress.status_message == "recognized frame without chunks after second-round fallback") {
+            _progress.status_message == "recognized frame without chunks after second-round fallback" ||
+            _progress.status_message == "recognized frame without chunks after third-round display fallback") {
             // keep the fourth-tier exhaustion marker set above
         } else {
             _progress.status_message = used_clarity_fallback

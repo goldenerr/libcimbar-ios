@@ -141,10 +141,21 @@ final class CameraCaptureService: NSObject, ObservableObject {
         try camera.lockForConfiguration()
         defer { camera.unlockForConfiguration() }
 
+        if camera.isFocusPointOfInterestSupported {
+            camera.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
+        }
+        if camera.isExposurePointOfInterestSupported {
+            camera.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
+        }
+
         if camera.isFocusModeSupported(.continuousAutoFocus) {
             camera.focusMode = .continuousAutoFocus
         } else if camera.isFocusModeSupported(.autoFocus) {
             camera.focusMode = .autoFocus
+        }
+
+        if camera.isAutoFocusRangeRestrictionSupported {
+            camera.autoFocusRangeRestriction = .near
         }
 
         if camera.isSmoothAutoFocusSupported {
@@ -157,6 +168,12 @@ final class CameraCaptureService: NSObject, ObservableObject {
 
         if camera.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
             camera.whiteBalanceMode = .continuousAutoWhiteBalance
+        }
+
+        let preferredZoom: CGFloat = 2.0
+        let maxZoom = min(camera.activeFormat.videoMaxZoomFactor, camera.maxAvailableVideoZoomFactor)
+        if maxZoom >= 1.5 {
+            camera.videoZoomFactor = min(preferredZoom, maxZoom)
         }
 
         camera.isSubjectAreaChangeMonitoringEnabled = true
