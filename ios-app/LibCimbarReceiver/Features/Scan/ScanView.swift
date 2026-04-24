@@ -90,7 +90,7 @@ struct ScanView: View {
                 Label("显示器扫码模式", systemImage: "display")
                     .font(.headline)
                     .foregroundStyle(.white)
-                Text("把码尽量放进中间取景框，贴近一些，填满大约 70% 宽度再停稳。")
+                Text("先贴近一些让它占到大约 70% 宽度；如果一直锁不住，就先别动稳住约 2 秒，让相机自动切到 Windows 档。")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.85))
             }
