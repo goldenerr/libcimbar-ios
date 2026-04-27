@@ -7,7 +7,7 @@ struct CompletedDecodedFile {
 }
 
 final class CimbarDecoderBridgeService: ObservableObject {
-    @Published private(set) var scanState = ScanState()
+    private(set) var scanState = ScanState()
     private(set) var diagnosticsSummary = ""
     private(set) var lastSnapshotSummary = ""
 
@@ -32,6 +32,7 @@ final class CimbarDecoderBridgeService: ObservableObject {
 
     func reset() {
         native.reset()
+        objectWillChange.send()
         scanState = ScanState()
         diagnosticsSummary = ""
         lastSnapshotSummary = ""
@@ -81,9 +82,11 @@ final class CimbarDecoderBridgeService: ObservableObject {
         if shouldUpdateScanState {
             lastScanStatePublishAt = now
             if Thread.isMainThread {
+                objectWillChange.send()
                 scanState = nextState
             } else {
                 DispatchQueue.main.async { [weak self] in
+                    self?.objectWillChange.send()
                     self?.scanState = nextState
                 }
             }
