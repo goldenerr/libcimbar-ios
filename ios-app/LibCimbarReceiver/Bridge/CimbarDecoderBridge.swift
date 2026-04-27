@@ -8,8 +8,8 @@ struct CompletedDecodedFile {
 
 final class CimbarDecoderBridgeService: ObservableObject {
     @Published private(set) var scanState = ScanState()
-    @Published private(set) var diagnosticsSummary = ""
-    @Published private(set) var lastSnapshotSummary = ""
+    private(set) var diagnosticsSummary = ""
+    private(set) var lastSnapshotSummary = ""
 
     var onCompletedFile: ((String, Data) -> Void)?
 
