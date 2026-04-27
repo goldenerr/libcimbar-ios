@@ -26,7 +26,7 @@ final class CimbarDecoderBridgeService: ObservableObject {
     private var peakScannedChunks = 0
     private var peakExtractedBytes = 0
     private var lastScanStatePublishAt: Date?
-    private let scanStatePublishInterval: TimeInterval = 0.25
+    private let scanStatePublishInterval: TimeInterval = 1.0
 
     func noteIncomingFrame() {
         incomingFrameCount += 1
