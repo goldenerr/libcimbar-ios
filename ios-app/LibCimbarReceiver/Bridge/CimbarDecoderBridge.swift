@@ -19,10 +19,11 @@ final class CimbarDecoderBridgeService: ObservableObject {
     private var nilSnapshotCount = 0
     private var successfulSnapshotCount = 0
     private var lastSnapshotAt: Date?
+    private var lastDiagnosticsPublishAt: Date?
+    private let diagnosticsPublishInterval: TimeInterval = 0.25
 
     func noteIncomingFrame() {
         incomingFrameCount += 1
-        publishDiagnosticsIfNeeded(lastEvent: "frame")
     }
 
     func reset() {
@@ -35,6 +36,7 @@ final class CimbarDecoderBridgeService: ObservableObject {
         nilSnapshotCount = 0
         successfulSnapshotCount = 0
         lastSnapshotAt = nil
+        lastDiagnosticsPublishAt = nil
     }
 
     func configure(mode: Int) {
@@ -81,13 +83,21 @@ final class CimbarDecoderBridgeService: ObservableObject {
     }
 
     private func publishDiagnosticsIfNeeded(lastEvent: String) {
+        let now = Date()
+        if let lastDiagnosticsPublishAt,
+           now.timeIntervalSince(lastDiagnosticsPublishAt) < diagnosticsPublishInterval,
+           lastEvent != "native=nil" {
+            return
+        }
+
         let lastAgeText: String
         if let lastSnapshotAt {
-            lastAgeText = String(format: "%.1fs", Date().timeIntervalSince(lastSnapshotAt))
+            lastAgeText = String(format: "%.1fs", now.timeIntervalSince(lastSnapshotAt))
         } else {
             lastAgeText = "never"
         }
 
+        lastDiagnosticsPublishAt = now
         let summary = "diag frames=\(incomingFrameCount) attempts=\(processAttemptCount) ok=\(successfulSnapshotCount) nil=\(nilSnapshotCount) last=\(lastEvent) lastOK=\(lastAgeText)"
         if Thread.isMainThread {
             diagnosticsSummary = summary
@@ -101,6 +111,9 @@ final class CimbarDecoderBridgeService: ObservableObject {
     private func publishLastSnapshotSummary(_ snapshot: ScanSnapshot) {
         let status = snapshot.statusMessage.isEmpty ? "<empty>" : snapshot.statusMessage
         let summary = "snap phase=\(snapshot.phase.debugLabel) recognized=\(snapshot.recognizedFrame ? 1 : 0) sharpen=\(snapshot.needsSharpen ? 1 : 0) bytes=\(snapshot.extractedBytes) chunks=\(snapshot.scannedChunks)/\(snapshot.totalChunks) status=\(status)"
+        guard summary != lastSnapshotSummary else {
+            return
+        }
         if Thread.isMainThread {
             lastSnapshotSummary = summary
         } else {
