@@ -21,6 +21,8 @@ final class CimbarDecoderBridgeService: ObservableObject {
     private var lastSnapshotAt: Date?
     private var lastDiagnosticsPublishAt: Date?
     private let diagnosticsPublishInterval: TimeInterval = 0.25
+    private var recognizedSnapshotCount = 0
+    private var payloadSnapshotCount = 0
     private var peakScannedChunks = 0
     private var peakExtractedBytes = 0
 
@@ -39,6 +41,8 @@ final class CimbarDecoderBridgeService: ObservableObject {
         successfulSnapshotCount = 0
         lastSnapshotAt = nil
         lastDiagnosticsPublishAt = nil
+        recognizedSnapshotCount = 0
+        payloadSnapshotCount = 0
         peakScannedChunks = 0
         peakExtractedBytes = 0
     }
@@ -59,6 +63,12 @@ final class CimbarDecoderBridgeService: ObservableObject {
         successfulSnapshotCount += 1
         lastSnapshotAt = Date()
         let snapshot = ScanSnapshot(nativeSnapshot: nativeSnapshot)
+        if snapshot.recognizedFrame {
+            recognizedSnapshotCount += 1
+        }
+        if snapshot.extractedBytes > 0 {
+            payloadSnapshotCount += 1
+        }
         peakScannedChunks = max(peakScannedChunks, snapshot.scannedChunks)
         peakExtractedBytes = max(peakExtractedBytes, snapshot.extractedBytes)
         let nextState = ScanState(snapshot: snapshot)
@@ -104,7 +114,7 @@ final class CimbarDecoderBridgeService: ObservableObject {
         }
 
         lastDiagnosticsPublishAt = now
-        let summary = "diag frames=\(incomingFrameCount) attempts=\(processAttemptCount) ok=\(successfulSnapshotCount) nil=\(nilSnapshotCount) peakChunks=\(peakScannedChunks) peakBytes=\(peakExtractedBytes) last=\(lastEvent) lastOK=\(lastAgeText)"
+        let summary = "diag frames=\(incomingFrameCount) attempts=\(processAttemptCount) ok=\(successfulSnapshotCount) nil=\(nilSnapshotCount) rec=\(recognizedSnapshotCount) payload=\(payloadSnapshotCount) peakChunks=\(peakScannedChunks) peakBytes=\(peakExtractedBytes) last=\(lastEvent) lastOK=\(lastAgeText)"
         if Thread.isMainThread {
             diagnosticsSummary = summary
         } else {
