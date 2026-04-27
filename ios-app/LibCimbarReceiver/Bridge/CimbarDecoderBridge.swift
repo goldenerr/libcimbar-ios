@@ -20,7 +20,7 @@ final class CimbarDecoderBridgeService: ObservableObject {
     private var successfulSnapshotCount = 0
     private var lastSnapshotAt: Date?
     private var lastDiagnosticsPublishAt: Date?
-    private let diagnosticsPublishInterval: TimeInterval = 0.25
+    private let diagnosticsPublishInterval: TimeInterval = 2.0
     private var recognizedSnapshotCount = 0
     private var payloadSnapshotCount = 0
     private var peakScannedChunks = 0
@@ -101,8 +101,7 @@ final class CimbarDecoderBridgeService: ObservableObject {
     private func publishDiagnosticsIfNeeded(lastEvent: String) {
         let now = Date()
         if let lastDiagnosticsPublishAt,
-           now.timeIntervalSince(lastDiagnosticsPublishAt) < diagnosticsPublishInterval,
-           lastEvent != "native=nil" {
+           now.timeIntervalSince(lastDiagnosticsPublishAt) < diagnosticsPublishInterval {
             return
         }
 
