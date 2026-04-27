@@ -4,12 +4,6 @@ import SwiftUI
 final class CameraCaptureService: NSObject, ObservableObject {
     let session = AVCaptureSession()
 
-    private enum DisplayScanTuning {
-        static let preferredZoom: CGFloat = 3.0
-        static let minimumZoomToApply: CGFloat = 2.0
-        static let preferredFramesPerSecond: Int32 = 20
-    }
-
     private let output = AVCaptureVideoDataOutput()
     private let captureQueue = DispatchQueue(label: "camera.capture.queue")
     private let decodeQueue = DispatchQueue(label: "camera.decode.queue")
@@ -82,6 +76,7 @@ final class CameraCaptureService: NSObject, ObservableObject {
             self.session.startRunning()
             DispatchQueue.main.async {
                 self.isRunning = true
+                self.refreshCameraDebugSummary()
             }
         }
     }
@@ -90,13 +85,11 @@ final class CameraCaptureService: NSObject, ObservableObject {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
 
-        session.sessionPreset = .photo
+        session.sessionPreset = .high
 
         guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
             throw CameraCaptureError.noRearCamera
         }
-
-        try configureCameraForScanning(camera)
 
         let input = try AVCaptureDeviceInput(device: camera)
         guard session.canAddInput(input) else {
@@ -106,20 +99,16 @@ final class CameraCaptureService: NSObject, ObservableObject {
 
         output.alwaysDiscardsLateVideoFrames = true
         output.videoSettings = [
-            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
         ]
         output.setSampleBufferDelegate(self, queue: captureQueue)
-        if let connection = output.connection(with: .video) {
-            connection.videoOrientation = .portrait
-            if connection.isVideoMirroringSupported {
-                connection.isVideoMirrored = false
-            }
-        }
 
         guard session.canAddOutput(output) else {
             throw CameraCaptureError.cannotAddOutput
         }
         session.addOutput(output)
+
+        output.connection(with: .video)?.videoOrientation = .portrait
     }
 
     private func enqueueForDecode(_ sampleBuffer: CMSampleBuffer) {
@@ -148,111 +137,13 @@ final class CameraCaptureService: NSObject, ObservableObject {
         }
     }
 
-    private func configureCameraForScanning(_ camera: AVCaptureDevice) throws {
-        try camera.lockForConfiguration()
-        defer { camera.unlockForConfiguration() }
-
-        if camera.isFocusPointOfInterestSupported {
-            camera.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
+    private func refreshCameraDebugSummary() {
+        guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
+            return
         }
-        if camera.isExposurePointOfInterestSupported {
-            camera.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
-        }
-
-        if camera.isFocusModeSupported(.continuousAutoFocus) {
-            camera.focusMode = .continuousAutoFocus
-        } else if camera.isFocusModeSupported(.autoFocus) {
-            camera.focusMode = .autoFocus
-        }
-
-        if camera.isAutoFocusRangeRestrictionSupported {
-            camera.autoFocusRangeRestriction = .near
-        }
-
-        if camera.isSmoothAutoFocusSupported {
-            camera.isSmoothAutoFocusEnabled = false
-        }
-
-        if camera.isExposureModeSupported(.continuousAutoExposure) {
-            camera.exposureMode = .continuousAutoExposure
-        }
-
-        if camera.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
-            camera.whiteBalanceMode = .continuousAutoWhiteBalance
-        }
-
-        let maxZoom = min(camera.activeFormat.videoMaxZoomFactor, camera.maxAvailableVideoZoomFactor)
-        if maxZoom >= DisplayScanTuning.minimumZoomToApply {
-            camera.videoZoomFactor = min(DisplayScanTuning.preferredZoom, maxZoom)
-        }
-
-        let preferredFrameDuration = CMTime(value: 1, timescale: DisplayScanTuning.preferredFramesPerSecond)
-        if camera.activeFormat.videoSupportedFrameRateRanges.contains(where: {
-            $0.minFrameDuration <= preferredFrameDuration && $0.maxFrameDuration >= preferredFrameDuration
-        }) {
-            camera.activeVideoMinFrameDuration = preferredFrameDuration
-            camera.activeVideoMaxFrameDuration = preferredFrameDuration
-        }
-
-        camera.isSubjectAreaChangeMonitoringEnabled = false
-        publishCameraDebugSummary(for: camera)
-    }
-
-    private func publishCameraDebugSummary(for camera: AVCaptureDevice) {
-        let zoom = String(format: "%.2f", camera.videoZoomFactor)
-        let fps: String
-        if camera.activeVideoMaxFrameDuration.value > 0 {
-            fps = String(format: "%.1f", Double(camera.activeVideoMaxFrameDuration.timescale) / Double(camera.activeVideoMaxFrameDuration.value))
-        } else {
-            fps = "auto"
-        }
-
-        let focusRange: String
-        if camera.isAutoFocusRangeRestrictionSupported {
-            switch camera.autoFocusRangeRestriction {
-            case .none:
-                focusRange = "none"
-            case .near:
-                focusRange = "near"
-            case .far:
-                focusRange = "far"
-            @unknown default:
-                focusRange = "unknown"
-            }
-        } else {
-            focusRange = "unsupported"
-        }
-
-        let focusMode: String
-        switch camera.focusMode {
-        case .locked:
-            focusMode = "locked"
-        case .autoFocus:
-            focusMode = "auto"
-        case .continuousAutoFocus:
-            focusMode = "continuous"
-        @unknown default:
-            focusMode = "unknown"
-        }
-
-        let exposureMode: String
-        switch camera.exposureMode {
-        case .locked:
-            exposureMode = "locked"
-        case .autoExpose:
-            exposureMode = "auto"
-        case .continuousAutoExposure:
-            exposureMode = "continuous"
-        case .custom:
-            exposureMode = "custom"
-        @unknown default:
-            exposureMode = "unknown"
-        }
-
-        let summary = "cam zoom=\(zoom)x fps=\(fps) focus=\(focusMode)/\(focusRange) exposure=\(exposureMode)"
-        DispatchQueue.main.async { [weak self] in
-            self?.cameraDebugSummary = summary
-        }
+        let zoom = camera.videoZoomFactor
+        let fps = camera.activeVideoMaxFrameDuration.timescale
+        cameraDebugSummary = String(format: "cam zoom=%.2fx fps=%d preset=high", zoom, fps)
     }
 }
 
