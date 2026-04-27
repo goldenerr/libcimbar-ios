@@ -122,7 +122,7 @@ struct ScanStatusView: View {
 }
 
 #Preview {
-    ScanStatusView(scanState: ScanState(snapshot: ScanSnapshot(phase: .decoding, recognizedFrame: true, needsSharpen: false, extractedBytes: 2048, completedFileID: 0, scannedChunks: 12, totalChunks: 40)))
+    ScanStatusView(scanState: ScanState(snapshot: ScanSnapshot(phase: .decoding, recognizedFrame: true, needsSharpen: false, extractedBytes: 2048, completedFileID: 0, scannedChunks: 12, totalChunks: 40, statusMessage: "")))
         .padding()
         .background(Color.black)
 }
