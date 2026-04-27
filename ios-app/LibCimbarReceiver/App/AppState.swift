@@ -1,4 +1,3 @@
-import Combine
 import Foundation
 import SwiftUI
 
@@ -10,7 +9,6 @@ final class AppState: ObservableObject {
 
     let store: ReceivedFilesStore
     let decoderBridge: CimbarDecoderBridgeService
-    private var cancellables: Set<AnyCancellable> = []
 
     init(
         store: ReceivedFilesStore = ReceivedFilesStore(),
@@ -25,13 +23,6 @@ final class AppState: ObservableObject {
                 self?.persistCompletedFile(filename: filename, data: data)
             }
         }
-
-        decoderBridge.objectWillChange
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
     }
 
     func connect(camera: CameraCaptureService) {
