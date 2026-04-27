@@ -77,9 +77,13 @@ final class CimbarDecoderBridgeService: ObservableObject {
         let nextState = ScanState(snapshot: snapshot)
 
         let now = Date()
-        let phaseChanged = scanState.phase != nextState.phase
+        let phaseAdvanced = phaseRank(nextState.phase) > phaseRank(scanState.phase)
+        let samePhaseMoreProgress = phaseRank(nextState.phase) == phaseRank(scanState.phase)
+            && nextState.scannedChunks >= scanState.scannedChunks
+            && nextState.extractedBytes >= scanState.extractedBytes
         let timeSinceLastPublish = lastScanStatePublishAt.map { now.timeIntervalSince($0) } ?? scanStatePublishInterval
-        let shouldUpdateScanState = phaseChanged || timeSinceLastPublish >= scanStatePublishInterval
+        let shouldUpdateScanState = (phaseAdvanced || samePhaseMoreProgress)
+            && timeSinceLastPublish >= scanStatePublishInterval
 
         publishDiagnosticsIfNeeded(lastEvent: "native=ok")
         publishLastSnapshotSummary(snapshot)
@@ -100,6 +104,17 @@ final class CimbarDecoderBridgeService: ObservableObject {
         }
 
         return snapshot
+    }
+
+    private func phaseRank(_ phase: ScanPhase) -> Int {
+        switch phase {
+        case .idle: return 0
+        case .searching: return 1
+        case .detecting: return 2
+        case .decoding: return 3
+        case .completed: return 4
+        case .error: return 5
+        }
     }
 
     private func takeCompletedFile() -> CompletedDecodedFile? {
