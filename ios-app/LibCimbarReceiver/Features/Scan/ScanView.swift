@@ -48,7 +48,7 @@ struct ScanView: View {
                     successBanner(for: latestReceivedFile)
                 }
 
-                ScanStatusView(scanState: appState.decoderBridge.scanState)
+                ScanStatusObserver(bridge: appState.decoderBridge)
 
                 HStack(spacing: 12) {
                     Button {
@@ -97,22 +97,6 @@ struct ScanView: View {
                     Text(camera.cameraDebugSummary)
                         .font(.caption2.monospaced())
                         .foregroundStyle(.white.opacity(0.75))
-                        .textSelection(.enabled)
-                }
-                if !appState.decoderBridge.diagnosticsSummary.isEmpty {
-                    Text(appState.decoderBridge.diagnosticsSummary)
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(.white.opacity(0.72))
-                        .lineLimit(nil)
-                        .multilineTextAlignment(.leading)
-                        .textSelection(.enabled)
-                }
-                if !appState.decoderBridge.lastSnapshotSummary.isEmpty {
-                    Text(appState.decoderBridge.lastSnapshotSummary)
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(.white.opacity(0.72))
-                        .lineLimit(nil)
-                        .multilineTextAlignment(.leading)
                         .textSelection(.enabled)
                 }
             }
@@ -231,6 +215,13 @@ struct ScanView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .presentationDetents([.medium])
+    }
+}
+
+private struct ScanStatusObserver: View {
+    @ObservedObject var bridge: CimbarDecoderBridgeService
+    var body: some View {
+        ScanStatusView(scanState: bridge.scanState)
     }
 }
 
