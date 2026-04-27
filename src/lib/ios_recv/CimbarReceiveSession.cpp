@@ -191,7 +191,8 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
     bool used_clarity_fallback = false;
     int extract_result = _extractor.extract(img, img);
     if (!extract_result) {
-        std::array<cv::UMat, 2> prelock_display_crops = {{
+        std::array<cv::UMat, 3> prelock_display_crops = {{
+            apply_center_crop_variant(raw_img, 0.82),
             apply_center_crop_variant(raw_img, 0.72),
             apply_center_crop_variant(raw_img, 0.62)
         }};
@@ -200,6 +201,12 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
             extract_result = _extractor.extract(candidate, candidate);
             if (extract_result) {
                 img = candidate;
+                break;
+            }
+            cv::UMat deconvish_candidate = apply_deconvish_variant(cropped);
+            extract_result = _extractor.extract(deconvish_candidate, deconvish_candidate);
+            if (extract_result) {
+                img = deconvish_candidate;
                 break;
             }
         }
