@@ -25,6 +25,8 @@ final class CimbarDecoderBridgeService: ObservableObject {
     private var payloadSnapshotCount = 0
     private var peakScannedChunks = 0
     private var peakExtractedBytes = 0
+    private var lastScanStatePublishAt: Date?
+    private let scanStatePublishInterval: TimeInterval = 0.25
 
     func noteIncomingFrame() {
         incomingFrameCount += 1
@@ -45,6 +47,7 @@ final class CimbarDecoderBridgeService: ObservableObject {
         payloadSnapshotCount = 0
         peakScannedChunks = 0
         peakExtractedBytes = 0
+        lastScanStatePublishAt = nil
     }
 
     func configure(mode: Int) {
@@ -72,14 +75,23 @@ final class CimbarDecoderBridgeService: ObservableObject {
         peakScannedChunks = max(peakScannedChunks, snapshot.scannedChunks)
         peakExtractedBytes = max(peakExtractedBytes, snapshot.extractedBytes)
         let nextState = ScanState(snapshot: snapshot)
+
+        let now = Date()
+        let phaseChanged = scanState.phase != nextState.phase
+        let timeSinceLastPublish = lastScanStatePublishAt.map { now.timeIntervalSince($0) } ?? scanStatePublishInterval
+        let shouldUpdateScanState = phaseChanged || timeSinceLastPublish >= scanStatePublishInterval
+
         publishDiagnosticsIfNeeded(lastEvent: "native=ok")
         publishLastSnapshotSummary(snapshot)
 
-        if Thread.isMainThread {
-            scanState = nextState
-        } else {
-            DispatchQueue.main.async { [weak self] in
-                self?.scanState = nextState
+        if shouldUpdateScanState {
+            lastScanStatePublishAt = now
+            if Thread.isMainThread {
+                scanState = nextState
+            } else {
+                DispatchQueue.main.async { [weak self] in
+                    self?.scanState = nextState
+                }
             }
         }
 
