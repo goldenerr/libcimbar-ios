@@ -8,14 +8,33 @@ struct CompletedDecodedFile {
 
 final class CimbarDecoderBridgeService: ObservableObject {
     @Published private(set) var scanState = ScanState()
+    @Published private(set) var diagnosticsSummary = ""
+    @Published private(set) var lastSnapshotSummary = ""
 
     var onCompletedFile: ((String, Data) -> Void)?
 
     private let native = CimbarDecoderBridge()
+    private var incomingFrameCount = 0
+    private var processAttemptCount = 0
+    private var nilSnapshotCount = 0
+    private var successfulSnapshotCount = 0
+    private var lastSnapshotAt: Date?
+
+    func noteIncomingFrame() {
+        incomingFrameCount += 1
+        publishDiagnosticsIfNeeded(lastEvent: "frame")
+    }
 
     func reset() {
         native.reset()
         scanState = ScanState()
+        diagnosticsSummary = ""
+        lastSnapshotSummary = ""
+        incomingFrameCount = 0
+        processAttemptCount = 0
+        nilSnapshotCount = 0
+        successfulSnapshotCount = 0
+        lastSnapshotAt = nil
     }
 
     func configure(mode: Int) {
@@ -24,12 +43,19 @@ final class CimbarDecoderBridgeService: ObservableObject {
 
     @discardableResult
     func process(sampleBuffer: CMSampleBuffer) -> ScanSnapshot? {
+        processAttemptCount += 1
         guard let nativeSnapshot = native.processSampleBuffer(sampleBuffer) else {
+            nilSnapshotCount += 1
+            publishDiagnosticsIfNeeded(lastEvent: "native=nil")
             return nil
         }
 
+        successfulSnapshotCount += 1
+        lastSnapshotAt = Date()
         let snapshot = ScanSnapshot(nativeSnapshot: nativeSnapshot)
         let nextState = ScanState(snapshot: snapshot)
+        publishDiagnosticsIfNeeded(lastEvent: "native=ok")
+        publishLastSnapshotSummary(snapshot)
 
         if Thread.isMainThread {
             scanState = nextState
@@ -52,6 +78,36 @@ final class CimbarDecoderBridgeService: ObservableObject {
         }
 
         return CompletedDecodedFile(filename: completedFile.filename, data: completedFile.data)
+    }
+
+    private func publishDiagnosticsIfNeeded(lastEvent: String) {
+        let lastAgeText: String
+        if let lastSnapshotAt {
+            lastAgeText = String(format: "%.1fs", Date().timeIntervalSince(lastSnapshotAt))
+        } else {
+            lastAgeText = "never"
+        }
+
+        let summary = "diag frames=\(incomingFrameCount) attempts=\(processAttemptCount) ok=\(successfulSnapshotCount) nil=\(nilSnapshotCount) last=\(lastEvent) lastOK=\(lastAgeText)"
+        if Thread.isMainThread {
+            diagnosticsSummary = summary
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.diagnosticsSummary = summary
+            }
+        }
+    }
+
+    private func publishLastSnapshotSummary(_ snapshot: ScanSnapshot) {
+        let status = snapshot.statusMessage.isEmpty ? "<empty>" : snapshot.statusMessage
+        let summary = "snap phase=\(snapshot.phase.debugLabel) recognized=\(snapshot.recognizedFrame ? 1 : 0) sharpen=\(snapshot.needsSharpen ? 1 : 0) bytes=\(snapshot.extractedBytes) chunks=\(snapshot.scannedChunks)/\(snapshot.totalChunks) status=\(status)"
+        if Thread.isMainThread {
+            lastSnapshotSummary = summary
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.lastSnapshotSummary = summary
+            }
+        }
     }
 }
 
@@ -81,6 +137,23 @@ private extension ScanSnapshot {
 }
 
 private extension ScanPhase {
+    var debugLabel: String {
+        switch self {
+        case .idle:
+            return "idle"
+        case .searching:
+            return "searching"
+        case .detecting:
+            return "detecting"
+        case .decoding:
+            return "decoding"
+        case .completed:
+            return "completed"
+        case .error:
+            return "error"
+        }
+    }
+
     init(bridgePhase: CimbarDecoderBridgePhase) {
         switch bridgePhase {
         case .idle:

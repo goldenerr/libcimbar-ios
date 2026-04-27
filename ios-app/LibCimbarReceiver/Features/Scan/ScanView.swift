@@ -99,6 +99,22 @@ struct ScanView: View {
                         .foregroundStyle(.white.opacity(0.75))
                         .textSelection(.enabled)
                 }
+                if !appState.decoderBridge.diagnosticsSummary.isEmpty {
+                    Text(appState.decoderBridge.diagnosticsSummary)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.white.opacity(0.72))
+                        .lineLimit(nil)
+                        .multilineTextAlignment(.leading)
+                        .textSelection(.enabled)
+                }
+                if !appState.decoderBridge.lastSnapshotSummary.isEmpty {
+                    Text(appState.decoderBridge.lastSnapshotSummary)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.white.opacity(0.72))
+                        .lineLimit(nil)
+                        .multilineTextAlignment(.leading)
+                        .textSelection(.enabled)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
