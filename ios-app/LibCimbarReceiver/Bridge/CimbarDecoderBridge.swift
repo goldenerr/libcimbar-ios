@@ -21,6 +21,8 @@ final class CimbarDecoderBridgeService: ObservableObject {
     private var lastSnapshotAt: Date?
     private var lastDiagnosticsPublishAt: Date?
     private let diagnosticsPublishInterval: TimeInterval = 0.25
+    private var peakScannedChunks = 0
+    private var peakExtractedBytes = 0
 
     func noteIncomingFrame() {
         incomingFrameCount += 1
@@ -37,6 +39,8 @@ final class CimbarDecoderBridgeService: ObservableObject {
         successfulSnapshotCount = 0
         lastSnapshotAt = nil
         lastDiagnosticsPublishAt = nil
+        peakScannedChunks = 0
+        peakExtractedBytes = 0
     }
 
     func configure(mode: Int) {
@@ -55,6 +59,8 @@ final class CimbarDecoderBridgeService: ObservableObject {
         successfulSnapshotCount += 1
         lastSnapshotAt = Date()
         let snapshot = ScanSnapshot(nativeSnapshot: nativeSnapshot)
+        peakScannedChunks = max(peakScannedChunks, snapshot.scannedChunks)
+        peakExtractedBytes = max(peakExtractedBytes, snapshot.extractedBytes)
         let nextState = ScanState(snapshot: snapshot)
         publishDiagnosticsIfNeeded(lastEvent: "native=ok")
         publishLastSnapshotSummary(snapshot)
@@ -98,7 +104,7 @@ final class CimbarDecoderBridgeService: ObservableObject {
         }
 
         lastDiagnosticsPublishAt = now
-        let summary = "diag frames=\(incomingFrameCount) attempts=\(processAttemptCount) ok=\(successfulSnapshotCount) nil=\(nilSnapshotCount) last=\(lastEvent) lastOK=\(lastAgeText)"
+        let summary = "diag frames=\(incomingFrameCount) attempts=\(processAttemptCount) ok=\(successfulSnapshotCount) nil=\(nilSnapshotCount) peakChunks=\(peakScannedChunks) peakBytes=\(peakExtractedBytes) last=\(lastEvent) lastOK=\(lastAgeText)"
         if Thread.isMainThread {
             diagnosticsSummary = summary
         } else {
