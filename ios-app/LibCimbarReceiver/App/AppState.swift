@@ -37,7 +37,7 @@ final class AppState: ObservableObject {
     func connect(camera: CameraCaptureService) {
         camera.onSampleBuffer = { [decoderBridge] sampleBuffer in
             decoderBridge.noteIncomingFrame()
-            decoderBridge.process(sampleBuffer: sampleBuffer)
+            return decoderBridge.process(sampleBuffer: sampleBuffer)
         }
     }
 
