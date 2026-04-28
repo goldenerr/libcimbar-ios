@@ -74,6 +74,23 @@ struct ScanState: Equatable {
         return max(0, totalChunks - normalizedScannedChunks)
     }
 
+    // Fountain encoding: 12 chunks per cimbar frame (Conf8x8 mode).
+    // Display frame counts so users see "已扫 5/14 帧" instead of "已扫 60/168 块".
+    private static let chunksPerFrame = 12
+
+    var scannedFrames: Int {
+        (normalizedScannedChunks + Self.chunksPerFrame - 1) / Self.chunksPerFrame
+    }
+
+    var totalFrames: Int {
+        (totalChunks + Self.chunksPerFrame - 1) / Self.chunksPerFrame
+    }
+
+    var remainingFrames: Int? {
+        guard totalChunks > 0 else { return nil }
+        return max(0, totalFrames - scannedFrames)
+    }
+
     var progressFraction: Double {
         guard totalChunks > 0 else { return 0 }
         return Double(normalizedScannedChunks) / Double(totalChunks)

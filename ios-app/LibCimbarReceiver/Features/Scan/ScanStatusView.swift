@@ -17,8 +17,8 @@ struct ScanStatusView: View {
                     HStack(alignment: .firstTextBaseline) {
                         Label("进度 \(scanState.progressPercent)%", systemImage: "chart.bar.fill")
                         Spacer()
-                        if let remainingChunks = scanState.remainingChunks {
-                            Text("还差 \(remainingChunks) 码")
+                        if let remainingFrames = scanState.remainingFrames {
+                            Text("还差 \(remainingFrames) 帧")
                         }
                     }
                     .font(.caption)
@@ -28,16 +28,16 @@ struct ScanStatusView: View {
                         .tint(.accentColor)
 
                     HStack {
-                        Label("已扫 \(scanState.normalizedScannedChunks)", systemImage: "viewfinder")
+                        Label("已扫 \(scanState.scannedFrames) 帧", systemImage: "viewfinder")
                         Spacer()
-                        Label("总数 \(scanState.totalChunks)", systemImage: "square.grid.3x3")
+                        Label("约需 \(scanState.totalFrames) 帧", systemImage: "square.grid.3x3")
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
             } else {
                 HStack {
-                    Label("已扫 \(scanState.normalizedScannedChunks) 个码", systemImage: "viewfinder")
+                    Label("已扫 \(scanState.normalizedScannedChunks) 块", systemImage: "viewfinder")
                     Spacer()
                     Text("总数 未知")
                 }
@@ -45,10 +45,39 @@ struct ScanStatusView: View {
                 .foregroundStyle(.secondary)
             }
 
+            if scanState.isLockedFrameWithoutChunks {
+                Label("诊断：已锁定码框，但这一帧还没解出有效 chunk。", systemImage: "stethoscope")
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if scanState.hasDecodedPayload && !scanState.hasChunkProgress {
+                Label("诊断：已读到 payload bytes，正在等待 fountain 元数据给出总码数。", systemImage: "waveform.path.ecg")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if !scanState.nativeStatusMessage.isEmpty {
+                Label("Native: \(scanState.nativeStatusMessage)", systemImage: "terminal")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+            }
+
             if scanState.needsSharpen {
                 Label("Try moving closer or improving lighting.", systemImage: "wand.and.stars")
                     .font(.caption)
                     .foregroundStyle(.yellow)
+                    .lineLimit(nil)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             if let completedFileID = scanState.completedFileID {
@@ -71,22 +100,83 @@ struct ScanStatusView: View {
         case .idle:
             return "Point the camera at an animated cimbar stream to begin."
         case .searching:
-            return "Looking for a recognizable frame."
+            return scanState.nativeStatusMessage.isEmpty ? "Looking for a recognizable frame." : nativeStatusDescription
         case .detecting:
-            return scanState.isRecognizedFrame ? "已锁定码框，但这一帧还没读出有效数据。" : "Align the code fully in view."
+            return scanState.isLockedFrameWithoutChunks
+                ? "已锁定码框，但这一帧还没读出有效数据。"
+                : nativeStatusDescription
         case .decoding:
             if scanState.hasChunkProgress {
-                let remainingText = scanState.remainingChunks.map { "，还差 \($0) 个码" } ?? ""
-                return "已扫描 \(scanState.normalizedScannedChunks)/\(scanState.totalChunks) 个码（\(scanState.progressPercent)%）\(remainingText)，累计解出 \(scanState.extractedBytes) bytes。"
+                let remainingText = scanState.remainingFrames.map { "，还差 \($0) 帧" } ?? ""
+                let sizeText = ByteCountFormatter.string(fromByteCount: Int64(scanState.extractedBytes), countStyle: .file)
+                return "已扫描 \(scanState.scannedFrames)/\(scanState.totalFrames) 帧（\(scanState.progressPercent)%）\(remainingText)，累计 \(sizeText)。"
             }
             if scanState.hasScannedChunks {
-                return "已扫描 \(scanState.normalizedScannedChunks) 个码，累计解出 \(scanState.extractedBytes) bytes。"
+                let sizeText = ByteCountFormatter.string(fromByteCount: Int64(scanState.extractedBytes), countStyle: .file)
+                return "已扫描 \(scanState.scannedFrames) 帧，累计 \(sizeText)。"
             }
-            return "Decoded \(scanState.extractedBytes) bytes so far."
+            return nativeStatusDescription
         case .completed:
             return "Transfer finished. You can share the received file now."
         case .error(let message):
             return message
+        }
+    }
+
+    private var nativeStatusDescription: String {
+        if !scanState.nativeStatusMessage.isEmpty {
+            switch scanState.nativeStatusMessage {
+            case "searching":
+                return "Looking for a recognizable frame."
+            case "recognized frame without chunks":
+                return "已识别到码框，但这一帧还没解出有效 chunk。"
+            case "recognized frame without chunks after clarity fallback":
+                return "已识别到码框，clarity fallback 也试过了，但这一帧仍没解出有效 chunk。"
+            case "recognized frame without chunks after third-tier fallback":
+                return "已识别到码框，第三档多变体 fallback 也试过了，但这一帧仍没解出有效 chunk。"
+            case "recognized frame without chunks after fourth-tier fallback":
+                return "已识别到码框，第四档 soft-only fallback 也试过了，但这一帧仍没解出有效 chunk。"
+            case "recognized frame without chunks after second-round fallback":
+                return "已识别到码框，第二轮显示器兼容 fallback 也试过了，但这一帧仍没解出有效 chunk。"
+            case "recognized frame without chunks after third-round display fallback":
+                return "已识别到码框，第三轮显示器兼容 fallback 也试过了，但这一帧仍没解出有效 chunk。"
+            case "decoded frame chunks":
+                return "这一帧已经解出了 chunk，正在推进重组进度。"
+            case "decoded frame chunks after clarity fallback":
+                return "这一帧原本太糊，clarity fallback 已救回部分 chunk，正在推进重组进度。"
+            case "decoded frame chunks after display crop fallback":
+                return "这一帧命中了居中取景裁切 fallback，已救回部分 chunk，正在推进重组进度。"
+            case "decoded frame chunks after secondary clarity fallback":
+                return "这一帧更糊，第二档 fallback 已救回部分 chunk，正在推进重组进度。"
+            case "decoded frame chunks after third-tier fallback":
+                return "这一帧命中了第三档多变体 fallback，已救回部分 chunk，正在推进重组进度。"
+            case "decoded frame chunks after fourth-tier fallback":
+                return "这一帧命中了第四档 soft-only fallback，已救回部分 chunk，正在推进重组进度。"
+            case "decoded frame chunks after second-round fallback":
+                return "这一帧命中了第二轮显示器兼容 fallback，已救回部分 chunk，正在推进重组进度。"
+            case "decoded frame chunks after third-round display fallback":
+                return "这一帧命中了第三轮显示器兼容 fallback，已救回部分 chunk，正在推进重组进度。"
+            case "completed file":
+                return "文件已重组完成。"
+            case "invalid frame":
+                return "当前相机帧无效，等待下一帧。"
+            case "failed to recover completed file":
+                return "文件已拼齐，但在恢复输出文件时失败。"
+            default:
+                return scanState.nativeStatusMessage
+            }
+        }
+
+        switch scanState.phase {
+        case .searching:
+            return "Looking for a recognizable frame."
+        case .detecting:
+            return scanState.isRecognizedFrame ? "已锁定码框，但这一帧还没读出有效数据。" : "Align the code fully in view."
+        case .decoding:
+            let sizeText = ByteCountFormatter.string(fromByteCount: Int64(scanState.extractedBytes), countStyle: .file)
+            return "Decoded \(sizeText) so far."
+        default:
+            return scanState.statusText
         }
     }
 
@@ -122,7 +212,7 @@ struct ScanStatusView: View {
 }
 
 #Preview {
-    ScanStatusView(scanState: ScanState(snapshot: ScanSnapshot(phase: .decoding, recognizedFrame: true, needsSharpen: false, extractedBytes: 2048, completedFileID: 0, scannedChunks: 12, totalChunks: 40, statusMessage: "")))
+    ScanStatusView(scanState: ScanState(snapshot: ScanSnapshot(phase: .decoding, recognizedFrame: true, needsSharpen: false, extractedBytes: 524_288, completedFileID: 0, scannedChunks: 72, totalChunks: 168, statusMessage: "decoded frame chunks")))
         .padding()
         .background(Color.black)
 }
