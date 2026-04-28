@@ -17,8 +17,8 @@ struct ScanStatusView: View {
                     HStack(alignment: .firstTextBaseline) {
                         Label("进度 \(scanState.progressPercent)%", systemImage: "chart.bar.fill")
                         Spacer()
-                        if let remainingChunks = scanState.remainingChunks {
-                            Text("还差 \(remainingChunks) 码")
+                        if let remainingFrames = scanState.remainingFrames {
+                            Text("还差 \(remainingFrames) 帧")
                         }
                     }
                     .font(.caption)
@@ -28,16 +28,16 @@ struct ScanStatusView: View {
                         .tint(.accentColor)
 
                     HStack {
-                        Label("已扫 \(scanState.normalizedScannedChunks)", systemImage: "viewfinder")
+                        Label("已扫 \(scanState.scannedFrames) 帧", systemImage: "viewfinder")
                         Spacer()
-                        Label("总数 \(scanState.totalChunks)", systemImage: "square.grid.3x3")
+                        Label("约需 \(scanState.totalFrames) 帧", systemImage: "square.grid.3x3")
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
             } else {
                 HStack {
-                    Label("已扫 \(scanState.normalizedScannedChunks) 个码", systemImage: "viewfinder")
+                    Label("已扫 \(scanState.normalizedScannedChunks) 块", systemImage: "viewfinder")
                     Spacer()
                     Text("总数 未知")
                 }
@@ -107,11 +107,13 @@ struct ScanStatusView: View {
                 : nativeStatusDescription
         case .decoding:
             if scanState.hasChunkProgress {
-                let remainingText = scanState.remainingChunks.map { "，还差 \($0) 个码" } ?? ""
-                return "已扫描 \(scanState.normalizedScannedChunks)/\(scanState.totalChunks) 个码（\(scanState.progressPercent)%）\(remainingText)，累计解出 \(scanState.extractedBytes) bytes。"
+                let remainingText = scanState.remainingFrames.map { "，还差 \($0) 帧" } ?? ""
+                let sizeText = ByteCountFormatter.string(fromByteCount: Int64(scanState.extractedBytes), countStyle: .file)
+                return "已扫描 \(scanState.scannedFrames)/\(scanState.totalFrames) 帧（\(scanState.progressPercent)%）\(remainingText)，累计 \(sizeText)。"
             }
             if scanState.hasScannedChunks {
-                return "已扫描 \(scanState.normalizedScannedChunks) 个码，累计解出 \(scanState.extractedBytes) bytes。"
+                let sizeText = ByteCountFormatter.string(fromByteCount: Int64(scanState.extractedBytes), countStyle: .file)
+                return "已扫描 \(scanState.scannedFrames) 帧，累计 \(sizeText)。"
             }
             return nativeStatusDescription
         case .completed:
@@ -171,7 +173,8 @@ struct ScanStatusView: View {
         case .detecting:
             return scanState.isRecognizedFrame ? "已锁定码框，但这一帧还没读出有效数据。" : "Align the code fully in view."
         case .decoding:
-            return "Decoded \(scanState.extractedBytes) bytes so far."
+            let sizeText = ByteCountFormatter.string(fromByteCount: Int64(scanState.extractedBytes), countStyle: .file)
+            return "Decoded \(sizeText) so far."
         default:
             return scanState.statusText
         }
@@ -209,7 +212,7 @@ struct ScanStatusView: View {
 }
 
 #Preview {
-    ScanStatusView(scanState: ScanState(snapshot: ScanSnapshot(phase: .decoding, recognizedFrame: true, needsSharpen: false, extractedBytes: 2048, completedFileID: 0, scannedChunks: 12, totalChunks: 40, statusMessage: "decoded frame chunks")))
+    ScanStatusView(scanState: ScanState(snapshot: ScanSnapshot(phase: .decoding, recognizedFrame: true, needsSharpen: false, extractedBytes: 524_288, completedFileID: 0, scannedChunks: 72, totalChunks: 168, statusMessage: "decoded frame chunks")))
         .padding()
         .background(Color.black)
 }
