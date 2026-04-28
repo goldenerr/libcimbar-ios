@@ -65,13 +65,20 @@ final class CimbarDecoderBridgeService: ObservableObject {
         let snapshot = ScanSnapshot(nativeSnapshot: nativeSnapshot)
         peakScannedChunks = max(peakScannedChunks, snapshot.scannedChunks)
         peakExtractedBytes = max(peakExtractedBytes, snapshot.extractedBytes)
-        let nextState = ScanState(snapshot: snapshot)
+        var nextState = ScanState(snapshot: snapshot)
+        // Use peak extracted bytes so the UI shows cumulative progress,
+        // not a per-frame value that can regress after a decode-rich frame.
+        nextState.extractedBytes = peakExtractedBytes
 
         let now = Date()
         let phaseAdvanced = phaseRank(nextState.phase) > phaseRank(scanState.phase)
+        // scannedChunks is cumulative (fountain unique-block count) and
+        // naturally monotonic.  extractedBytes is per-frame and fluctuates;
+        // using it as a gate causes the progress bar to freeze whenever a
+        // frame extracts fewer bytes than a previous frame — the common
+        // case for large files where most frames are duplicate/redundant.
         let samePhaseMoreProgress = phaseRank(nextState.phase) == phaseRank(scanState.phase)
             && nextState.scannedChunks >= scanState.scannedChunks
-            && nextState.extractedBytes >= scanState.extractedBytes
         let timeSinceLastPublish = lastScanStatePublishAt.map { now.timeIntervalSince($0) } ?? scanStatePublishInterval
         let shouldUpdateScanState = (phaseAdvanced || samePhaseMoreProgress)
             && timeSinceLastPublish >= scanStatePublishInterval
