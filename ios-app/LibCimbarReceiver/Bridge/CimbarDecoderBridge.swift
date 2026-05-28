@@ -112,8 +112,9 @@ final class CimbarDecoderBridgeService: ObservableObject {
         case .searching: return 1
         case .detecting: return 2
         case .decoding: return 3
-        case .completed: return 4
-        case .error: return 5
+        case .reconstructing: return 4
+        case .completed: return 5
+        case .error: return 6
         }
     }
 
@@ -202,6 +203,8 @@ private extension ScanPhase {
             return "detecting"
         case .decoding:
             return "decoding"
+        case .reconstructing:
+            return "reconstructing"
         case .completed:
             return "completed"
         case .error:
@@ -217,8 +220,10 @@ private extension ScanPhase {
             self = .searching
         case .detecting:
             self = .detecting
-        case .decoding, .reconstructing:
+        case .decoding:
             self = .decoding
+        case .reconstructing:
+            self = .reconstructing
         case .completed:
             self = .completed
         case .error:

@@ -116,6 +116,16 @@ struct ScanStatusView: View {
                 return "已扫描 \(scanState.scannedFrames) 帧，累计 \(sizeText)。"
             }
             return nativeStatusDescription
+        case .reconstructing:
+            if scanState.hasChunkProgress {
+                let sizeText = ByteCountFormatter.string(fromByteCount: Int64(scanState.extractedBytes), countStyle: .file)
+                return "全部 \(scanState.totalFrames) 帧已扫描（100%），累计 \(sizeText)。大文件重组可能需要数十秒，请保持相机对准码流。"
+            }
+            if scanState.hasScannedChunks {
+                let sizeText = ByteCountFormatter.string(fromByteCount: Int64(scanState.extractedBytes), countStyle: .file)
+                return "已扫描 \(scanState.scannedFrames) 帧，累计 \(sizeText)，正在重组。大文件可能需要数十秒。"
+            }
+            return "正在重组文件数据…大文件可能需要数十秒。"
         case .completed:
             return "Transfer finished. You can share the received file now."
         case .error(let message):
@@ -175,6 +185,9 @@ struct ScanStatusView: View {
         case .decoding:
             let sizeText = ByteCountFormatter.string(fromByteCount: Int64(scanState.extractedBytes), countStyle: .file)
             return "Decoded \(sizeText) so far."
+        case .reconstructing:
+            let sizeText = ByteCountFormatter.string(fromByteCount: Int64(scanState.extractedBytes), countStyle: .file)
+            return "All frames scanned (\(sizeText)). Reconstructing file — this may take a while for large files."
         default:
             return scanState.statusText
         }
@@ -188,6 +201,8 @@ struct ScanStatusView: View {
             return "camera.metering.center.weighted"
         case .decoding:
             return "tray.and.arrow.down"
+        case .reconstructing:
+            return "gearshape.2"
         case .completed:
             return "checkmark.circle.fill"
         case .error:
@@ -205,6 +220,8 @@ struct ScanStatusView: View {
             return .yellow.opacity(0.4)
         case .decoding:
             return .accentColor.opacity(0.4)
+        case .reconstructing:
+            return .orange.opacity(0.5)
         case .idle, .searching:
             return .white.opacity(0.18)
         }

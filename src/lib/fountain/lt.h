@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <cmath>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -37,20 +38,36 @@ public:
 	}
 };
 
-// ============ Ideal Soliton distribution (with boosted degree-1) ============
+// ============ Robust Soliton distribution ============
+//
+// For large files (N > 10,000), the classic Ideal Soliton produces
+// too few degree-1 blocks — P(d=1) = O(1/N). The peeling decoder
+// stalls because the ripple of degree-1 blocks runs dry.
+//
+// Robust Soliton adds a spike τ(1) ≈ O(1/√N) of extra degree-1
+// blocks, keeping the ripple alive for arbitrarily large N.
+// References: Luby (2002) "LT Codes", §5.
+//
 inline unsigned lt_sample_degree(LTRng& rng, unsigned N)
 {
 	if (N <= 1)
 		return 1;
+
 	double u = rng.next_double();
 
-	// Boost P(d=1) to 2/N for reliable peeling startup
-	// (Pure Ideal Soliton has P(d=1)=1/N — too sparse for small N)
-	double p1 = 2.0 / N;
+	// Robust Soliton: minimum degree-1 fraction scales as 1/√N.
+	// For N=100, this gives P(d=1)≈10%; for N=20,000, P(d=1)≈0.7%.
+	// This is the τ(1) spike that sustains the peeling ripple.
+	double p1_robust = 1.0 / sqrt((double)N);
+	double p1 = (p1_robust > 2.0 / N) ? p1_robust : (2.0 / N);
+	if (p1 > 0.5) p1 = 0.5;  // safety cap for tiny N (N<4)
+
 	if (u < p1)
 		return 1;
 
-	// Remaining mass distributed as Ideal Soliton for d >= 2
+	// Remaining mass distributed as Ideal Soliton for d >= 2.
+	// Ideal Soliton CDF for d≥2: F(d) = 1 - 1/d + 1/N ≈ 1 - 1/d.
+	// Inverse sampling: d = floor(1/(1-u)).
 	u = (u - p1) / (1.0 - p1);
 	double t = 1.0 / (1.0 - u);
 	unsigned d = (unsigned)(t);

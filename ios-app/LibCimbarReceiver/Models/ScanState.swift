@@ -5,6 +5,7 @@ enum ScanPhase: Equatable {
     case searching
     case detecting
     case decoding
+    case reconstructing
     case completed
     case error(String)
 
@@ -18,6 +19,8 @@ enum ScanPhase: Equatable {
             return "Detected a frame"
         case .decoding:
             return "Decoding frame data…"
+        case .reconstructing:
+            return "Reconstructing file data…"
         case .completed:
             return "Scan completed"
         case .error(let message):
