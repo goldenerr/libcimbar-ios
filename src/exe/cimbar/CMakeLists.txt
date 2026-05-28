@@ -17,7 +17,6 @@ target_link_libraries(cimbar
 	extractor
 
 	correct_static
-	wirehair
 	zstd
 	${OPENCV_LIBS}
 	${CPPFILESYSTEM}

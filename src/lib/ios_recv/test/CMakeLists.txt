@@ -20,7 +20,6 @@ target_link_libraries(ios_recv_test
     extractor
     fountain
     correct_static
-    wirehair
     zstd
     ${OPENCV_LIBS}
 )

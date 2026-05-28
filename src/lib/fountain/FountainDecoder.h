@@ -1,28 +1,18 @@
 /* This code is subject to the terms of the Mozilla Public License, v.2.0. http://mozilla.org/MPL/2.0/. */
 #pragma once
 
-#include "FountainInit.h"
-#include "wirehair/wirehair.h"
-#include <array>
+#include "lt.h"
 #include <optional>
 #include <set>
 #include <vector>
-
-// will need to split large files
 
 class FountainDecoder
 {
 public:
 	FountainDecoder(size_t length, size_t packet_size)
 	    : _length(length)
+	    , _decoder(length, packet_size)
 	{
-		FountainInit::init();
-		_codec = wirehair_decoder_create(nullptr, length, packet_size);
-	}
-
-	~FountainDecoder()
-	{
-		wirehair_free(_codec);
 	}
 
 	unsigned progress() const
@@ -37,12 +27,7 @@ public:
 
 	bool good() const
 	{
-		return _codec != nullptr;
-	}
-
-	WirehairResult last_result() const
-	{
-		return _res;
+		return _decoder.good();
 	}
 
 	bool decode(unsigned block_num, uint8_t* data, size_t length)
@@ -51,18 +36,12 @@ public:
 		if (!pear.second)
 			return false;
 
-		_res = wirehair_decode(_codec, block_num, data, length);
-		if (_res != Wirehair_Success)
-			return false;
-
-		// we're theoretically done
-		return true;
+		return _decoder.decode(block_num, data, length);
 	}
 
 	bool recover(unsigned char* data, unsigned size)
 	{
-		_res = wirehair_recover(_codec, data, size);
-		return _res == Wirehair_Success;
+		return _decoder.recover(data, size);
 	}
 
 	std::optional<std::vector<uint8_t>> recover()
@@ -70,14 +49,13 @@ public:
 		std::vector<uint8_t> bytes;
 		bytes.resize(_length);
 		if (!recover(bytes.data(), bytes.size()))
-			return std::nullopt; // :(
+			return std::nullopt;
 
 		return bytes;
 	}
 
 protected:
-	WirehairCodec _codec;
-	WirehairResult _res;
+	LTDecoder _decoder;
 	size_t _length;
-	std::set<unsigned> _seenBlocks; // giving wirehair_decode the same block too many times can make it very, very upset
+	std::set<unsigned> _seenBlocks;
 };

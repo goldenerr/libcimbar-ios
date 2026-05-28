@@ -28,7 +28,6 @@ target_link_libraries(cimbar_js_test
 	extractor
 
 	correct_static
-	wirehair
 	zstd
 	${OPENCV_LIBS}
 )

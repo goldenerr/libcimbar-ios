@@ -31,7 +31,6 @@ target_link_libraries(encoder_test
 	extractor
 
 	correct_static
-	wirehair
 	zstd
 	${OPENCV_LIBS}
 	${CPPFILESYSTEM}
