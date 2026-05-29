@@ -25,11 +25,11 @@ if(DEFINED USE_WASM)  # wasm build needs OPENCV_DIR defined
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGF256_TARGET_MOBILE")
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Os")
 
-	file( GLOB OPENCV_LIBS "${OPENCV_DIR}/opencv-build-wasm/build_wasm/lib/*.a" )
+	file( GLOB OPENCV_LIBS "${OPENCV_DIR}/build_wasm/lib/*.a" )
 	file( GLOB opencv_include_modules "${OPENCV_DIR}/modules/*/include" )
 	include_directories(
 		${OPENCV_DIR}/include/
-		${OPENCV_DIR}/opencv-build-wasm/build_wasm/
+		${OPENCV_DIR}/build_wasm/
 		${opencv_include_modules}
 	)
 else()  # if not wasm, go find opencv. 3 or 4 should both work
