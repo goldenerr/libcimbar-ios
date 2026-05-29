@@ -66,11 +66,8 @@ TEST_CASE( "FountainSinkSpecialTest/testMultipart", "[unit]" )
 	stringstream input = dummyContents(totalSize, randostr);
 	fountain_encoder_stream::ptr fes = fountain_encoder_stream::create(input, 750, 108);
 
-	bool recovered = false;
-	int recoveryFrame = -1;
-	const int totalFrames = (totalSize / 7500) * 3;
-
-	for (int i = 0; i < totalFrames; ++i)
+	const int expectedBlocks = 1613;
+	for (int i = 0; i < (totalSize / 7500) * 3; ++i)
 	{
 		string iframe = createFrame(*fes);
 		assertEquals( 7500, iframe.size() );
@@ -82,27 +79,23 @@ TEST_CASE( "FountainSinkSpecialTest/testMultipart", "[unit]" )
 		if (i % 2 == 1)
 		{
 			int64_t res = sink.decode_frame(iframe.data(), iframe.size());
-
-			if (!recovered)
+			//std::cout << i << ": " << res << std::endl;
+			if (i < expectedBlocks)
 			{
-				if (res == md.id())
-				{
-					recovered = true;
-					recoveryFrame = i;
-					assertMsg( sink.is_done(md.id()), fmt::format("failed {}, should be done", i) );
-				}
+				assertMsg(res == 0, fmt::format("failed during  {}, res {}", i, res));
 			}
-			else
+			else if (i == expectedBlocks)
 			{
-				// after recovery, all further writes should return -1 (already done)
-				assertMsg(res == -1 || res == md.id(),
-					fmt::format("after recovery at {}, got res {} at frame {}", recoveryFrame, res, i));
+				assertMsg(res == md.id(), fmt::format("failed {}, res {}", i, res));
+				assertMsg( sink.is_done(md.id()), fmt::format("failed {}, should be done", i) );
+			}
+			else // i > expectedBlocks, we're already done
+			{
+				assertMsg(res == -1, fmt::format("failed {}, res {}", i, res));
+				assertMsg( sink.is_done(md.id()), fmt::format("failed {}, should be done", i) );
 			}
 		}
 	}
-
-	assertTrue( recovered );
-	assertTrue( recoveryFrame > 0 );
 
 	assertEquals( 0, sink.num_streams() );
 	assertEquals( 1, sink.num_done() );

@@ -8,7 +8,7 @@
 class fountain_decoder_stream
 {
 public:
-	static const unsigned _headerSize = 8;
+	static const unsigned _headerSize = 6;
 
 public:
 	fountain_decoder_stream(unsigned data_size, unsigned buffer_size)
@@ -48,7 +48,7 @@ public:
 		_buffIndex = 0;
 		// we ignore the first 4 bytes. It's the sink's job to make sure we're getting the right stuff.
 		// we may, at some point, sanity check if data_size == [1]+[2]+[3]
-		uint32_t blockId = (uint32_t)(_buffer[4]) << 24 | (uint32_t)(_buffer[5]) << 16 | (uint32_t)(_buffer[6]) << 8 | _buffer[7];
+		unsigned blockId = (unsigned)(_buffer[4]) << 8 | _buffer[5];
 		return _decoder.decode(blockId, _buffer.data() + _headerSize, block_size());
 	}
 

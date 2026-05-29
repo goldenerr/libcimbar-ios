@@ -2,26 +2,6 @@ cmake_minimum_required(VERSION 3.10)
 
 project(cimbar_js)
 
-if(USE_WASM)
-    if(NOT DEFINED OPENCV_DIR)
-        message(FATAL_ERROR "OPENCV_DIR is required when USE_WASM=1")
-    endif()
-
-    set(OPENCV_WASM_LIB_DIR "${OPENCV_DIR}/lib")
-
-    set(OPENCV_WASM_LIBS
-        ${OPENCV_WASM_LIB_DIR}/libopencv_photo.a
-        ${OPENCV_WASM_LIB_DIR}/libopencv_calib3d.a
-        ${OPENCV_WASM_LIB_DIR}/libopencv_features2d.a
-        ${OPENCV_WASM_LIB_DIR}/libopencv_video.a
-        ${OPENCV_WASM_LIB_DIR}/libopencv_objdetect.a
-        ${OPENCV_WASM_LIB_DIR}/libopencv_flann.a
-        ${OPENCV_WASM_LIB_DIR}/libopencv_imgproc.a
-        ${OPENCV_WASM_LIB_DIR}/libopencv_core.a
-    )
-endif()
-
-
 set (SOURCES
 	cimbar_js.h
 	cimbar_js.cpp
@@ -55,6 +35,7 @@ target_link_libraries(cimbar_js
 	extractor
 
 	correct_static
+	wirehair
 	zstd
 	${OPENCV_LIBS}
 )

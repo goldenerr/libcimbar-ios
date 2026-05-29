@@ -205,8 +205,7 @@ public:
 
 		fountain_decoder_stream& s = p->second;
 		bool res = s.recover(data, size);
-		if (res)
-			mark_done(md, get_filename(md));
+		mark_done(md, get_filename(md));
 		return res;
 	}
 

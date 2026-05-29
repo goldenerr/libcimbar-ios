@@ -32,8 +32,7 @@ TEST_CASE( "FountainStreamTest/testEncoder", "[unit]" )
 		assertEquals( res, buff.size() );
 	}
 
-	// LT doesn't double-encode the last block (wirehair did, hence 170→169)
-	assertEquals( 169, fes->block_count() );
+	assertEquals( 170, fes->block_count() );
 	assertEquals( 13, fes->blocks_required() );
 	assertTrue( fes->good() );
 }
@@ -64,15 +63,15 @@ TEST_CASE( "FountainStreamTest/testEncoder_BlockHeader", "[unit]" )
 		assertEquals( 39, (unsigned)buff[2] );
 		assertEquals( 16, buff[3] );
 
-		// block_id (bytes 4-7, 32-bit) — LT always increments by 1 per block
+		// block_id
 		assertEquals( 0, buff[4] );
-		assertEquals( 0, buff[5] );
-		assertEquals( 0, buff[6] );
-		assertEquals( i, (unsigned)buff[7] );
+		if (i+1 >= fes->blocks_required())
+			assertEquals( i+1, (unsigned)buff[5] );
+		else
+			assertEquals( i, (unsigned)buff[5] );
 	}
 
-	// LT doesn't double-encode last block: 20 reads → 20 blocks
-	assertEquals( 20, fes->block_count() );
+	assertEquals( 21, fes->block_count() );
 	assertEquals( 16, fes->blocks_required() );
 	assertTrue( fes->good() );
 }
@@ -109,9 +108,8 @@ TEST_CASE( "FountainStreamTest/testEncoder_DifferentBuffSizes", "[unit]" )
 
 	assertEquals( full.str(), oneforty.str() );
 
-	// LT: one fewer block (no double-encode)
-	assertEquals( 14, fes1->block_count() );
-	assertEquals( 14, fes2->block_count() );
+	assertEquals( 15, fes1->block_count() );
+	assertEquals( 15, fes2->block_count() );
 }
 
 
@@ -123,22 +121,17 @@ TEST_CASE( "FountainStreamTest/testEncoder_Consistency", "[unit]" )
 
 	fountain_encoder_stream::ptr fes = fountain_encoder_stream::create(input, 400);
 
-	// LT encodes all blocks (no raw unencoded pass-through like wirehair).
-	// Test determinism: same block_num → same output every time.
-	std::array<char, 400> buff1, buff2;
-	unsigned res1 = fes->readsome(buff1.data(), buff1.size());
-	assertEquals( res1, buff1.size() );
+	stringstream full;
+	std::array<char, 400> buff;
 
-	// Re-create encoder and encode same first block
-	stringstream input2;
-	for (int i = 0; i < 100; ++i)
-		input2 << "0123456789";
-	fountain_encoder_stream::ptr fes2 = fountain_encoder_stream::create(input2, 400);
-	unsigned res2 = fes2->readsome(buff2.data(), buff2.size());
-	assertEquals( res2, buff2.size() );
+	unsigned res = fes->readsome(buff.data(), buff.size());
+	assertEquals( res, buff.size() );
+	full << string(buff.begin(), buff.end());
 
-	// Same data → same block output
-	assertEquals( string(buff1.begin(), buff1.end()), string(buff2.begin(), buff2.end()) );
+	std::string expected = {0, 0, 0x03, (char)0xe8, 0, 0};
+	expected += input.str().substr(0, 394);
+
+	assertEquals( expected, full.str() );
 }
 
 TEST_CASE( "FountainStreamTest/testEncoder_ChangeBufferSize", "[unit]" )
@@ -166,8 +159,7 @@ TEST_CASE( "FountainStreamTest/testEncoder_ChangeBufferSize", "[unit]" )
 		assertEquals( res, buff.size() );
 	}
 
-	// LT: one fewer block
-	assertEquals( 234, fes->block_count() );
+	assertEquals( 235, fes->block_count() );
 	assertEquals( 17, fes->blocks_required() );
 	assertTrue( fes->good() );
 }
@@ -225,14 +217,13 @@ TEST_CASE( "FountainStreamTest/testDecode", "[unit]" )
 			assertMsg(output, "couldn't decode :(");
 	}
 
-	// LT may need more blocks than blocks_required for recovery (probabilistic)
-	assertEquals( 822, fds.block_size() );
+	assertEquals( 824, fds.block_size() );
 	assertEquals( 10000, fds.data_size() );
 	assertTrue( fds.good() );
 	assertEquals( fes->blocks_required(), fds.blocks_required() );
-	assertTrue( fds.progress() >= fds.blocks_required() );
+	assertEquals( fes->blocks_required(), fds.progress() );
 
-	assertTrue( fes->block_count() >= fes->blocks_required() );
+	assertEquals( 15, fes->block_count() );
 	assertEquals( 13, fes->blocks_required() );
 	assertTrue( fes->good() );
 }
@@ -309,13 +300,13 @@ TEST_CASE( "FountainStreamTest/testDecode_BigPackets", "[unit]" )
 			assertMsg(output, "couldn't decode :(");
 	}
 
-	// header 6→8: block_size = 830 - 8 = 822; LT may need more blocks
-	assertEquals( 822, fds.block_size() );
+	assertEquals( 824, fds.block_size() );
 	assertEquals( 10000, fds.data_size() );
 	assertTrue( fds.good() );
 
-	assertTrue( fes->block_count() >= fes->blocks_required() );
+	assertEquals( 14, fes->block_count() );
 	assertEquals( 13, fes->blocks_required() );
 	assertTrue( fes->good() );
 
 }
+

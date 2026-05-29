@@ -13,7 +13,7 @@ public:
 	using ptr = std::shared_ptr<fountain_encoder_stream>;
 
 protected:
-	static const unsigned _headerSize = 8;
+	static const unsigned _headerSize = 6;
 
 protected:
 	fountain_encoder_stream(std::string&& data, unsigned buffer_size, uint8_t encode_id)

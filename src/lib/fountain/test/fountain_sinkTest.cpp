@@ -91,8 +91,7 @@ TEST_CASE( "FountainSinkTest/testMultipart", "[unit]" )
 	stringstream input = dummyContents(20000);
 	fountain_encoder_stream::ptr fes = fountain_encoder_stream::create(input, 690, 2);
 
-	bool recovered = false;
-	for (int i = 0; i < 7; ++i)
+	for (int i = 0; i < 4; ++i)
 	{
 		string iframe = createFrame(*fes);
 		assertEquals( 6900, iframe.size() );
@@ -101,15 +100,9 @@ TEST_CASE( "FountainSinkTest/testMultipart", "[unit]" )
 		assertEquals( 20000, md.file_size() );
 		assertEquals( 2, md.encode_id() );
 
-		bool done = sink.write(iframe.data(), iframe.size());
-		if (done)
-		{
-			recovered = true;
-			assertTrue( sink.is_done(md.id()) );
-		}
+		assertMsg( ((i == 2) == sink.write(iframe.data(), iframe.size())), fmt::format("failed {}", i) );
+		assertMsg( ((i >= 2) == sink.is_done(md.id())), fmt::format("failed {}", i) );
 	}
-
-	assertTrue( recovered );
 
 	assertEquals( 0, sink.num_streams() );
 	assertEquals( 1, sink.num_done() );

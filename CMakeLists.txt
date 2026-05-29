@@ -92,6 +92,7 @@ set(PROJECTS
 	src/exe/cimbar_recv2
 	src/exe/cimbar_send
 	src/exe/build_image_assets
+	src/exe/cimbar_headless_encode
 )
 endif()
 
