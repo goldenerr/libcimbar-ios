@@ -15,3 +15,11 @@ callgrind.out*
 cmake_install.cmake
 
 ios-app/Vendor/
+# macOS
+.DS_Store
+
+# Xcode user-specific files
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+
