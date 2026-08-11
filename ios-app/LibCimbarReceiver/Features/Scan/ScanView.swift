@@ -225,7 +225,9 @@ private struct ScanStatusObserver: View {
     }
 }
 
-#Preview {
-    ScanView()
-        .environmentObject(AppState())
+struct ScanView_Previews: PreviewProvider {
+    static var previews: some View {
+        ScanView()
+            .environmentObject(AppState())
+    }
 }

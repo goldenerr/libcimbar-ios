@@ -25,8 +25,7 @@ final class CimbarDecoderBridgeService: ObservableObject {
     private var payloadSnapshotCount = 0
     private var peakScannedChunks = 0
     private var peakExtractedBytes = 0
-    private var lastScanStatePublishAt: Date?
-    private let scanStatePublishInterval: TimeInterval = 1.0
+    private var lastPublishedScanState = ScanState()
 
     func noteIncomingFrame() {
         incomingFrameCount += 1
@@ -47,7 +46,7 @@ final class CimbarDecoderBridgeService: ObservableObject {
         payloadSnapshotCount = 0
         peakScannedChunks = 0
         peakExtractedBytes = 0
-        lastScanStatePublishAt = nil
+        lastPublishedScanState = ScanState()
     }
 
     func configure(mode: Int) {
@@ -76,20 +75,20 @@ final class CimbarDecoderBridgeService: ObservableObject {
         peakExtractedBytes = max(peakExtractedBytes, snapshot.extractedBytes)
         let nextState = ScanState(snapshot: snapshot)
 
-        let now = Date()
-        let phaseAdvanced = phaseRank(nextState.phase) > phaseRank(scanState.phase)
-        let samePhaseMoreProgress = phaseRank(nextState.phase) == phaseRank(scanState.phase)
-            && nextState.scannedChunks >= scanState.scannedChunks
-            && nextState.extractedBytes >= scanState.extractedBytes
-        let timeSinceLastPublish = lastScanStatePublishAt.map { now.timeIntervalSince($0) } ?? scanStatePublishInterval
-        let shouldUpdateScanState = (phaseAdvanced || samePhaseMoreProgress)
-            && timeSinceLastPublish >= scanStatePublishInterval
+        let phaseAdvanced = phaseRank(nextState.phase) > phaseRank(lastPublishedScanState.phase)
+        let progressAdvanced = nextState.scannedChunks > lastPublishedScanState.scannedChunks
+            || (nextState.totalChunks > 0 && nextState.totalChunks != lastPublishedScanState.totalChunks)
+        let isTerminal = nextState.completedFileID != nil || {
+            if case .error = nextState.phase { return true }
+            return false
+        }()
+        let shouldUpdateScanState = isTerminal || phaseAdvanced || progressAdvanced
 
         publishDiagnosticsIfNeeded(lastEvent: "native=ok")
         publishLastSnapshotSummary(snapshot)
 
         if shouldUpdateScanState {
-            lastScanStatePublishAt = now
+            lastPublishedScanState = nextState
             if Thread.isMainThread {
                 scanState = nextState
             } else {

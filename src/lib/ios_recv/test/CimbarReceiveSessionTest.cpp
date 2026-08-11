@@ -65,4 +65,8 @@ TEST_CASE("CimbarReceiveSession/processFrameReportsChunkCounts", "[unit]") {
     assertTrue(progress.total_chunks > 0);
     assertTrue(progress.scanned_chunks > 0);
     assertTrue(progress.scanned_chunks <= progress.total_chunks);
+    if (progress.completed_file_id == 0) {
+        assertEquals(static_cast<int>(cimbar::ios_recv::SessionPhase::Decoding),
+                     static_cast<int>(progress.phase));
+    }
 }

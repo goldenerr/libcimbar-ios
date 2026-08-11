@@ -54,10 +54,26 @@ struct ReceivedFilesStore {
 
         var files = loadReceivedFiles()
         files.insert(receivedFile, at: 0)
-        let indexData = try encoder.encode(files)
-        try indexData.write(to: indexURL, options: .atomic)
+        try saveIndex(files)
 
         return receivedFile
+    }
+
+    func deleteReceivedFile(_ file: ReceivedFile) throws {
+        try ensureStorageDirectoryExists()
+
+        var files = loadReceivedFiles()
+        guard let storedFile = files.first(where: { $0.id == file.id }) else {
+            return
+        }
+
+        let storedFileURL = fileURL(for: storedFile)
+        if fileManager.fileExists(atPath: storedFileURL.path) {
+            try fileManager.removeItem(at: storedFileURL)
+        }
+
+        files.removeAll { $0.id == file.id }
+        try saveIndex(files)
     }
 
     func fileURL(for file: ReceivedFile) -> URL {
@@ -80,6 +96,11 @@ struct ReceivedFilesStore {
 
     private func ensureStorageDirectoryExists() throws {
         try fileManager.createDirectory(at: receivedFilesDirectoryURL, withIntermediateDirectories: true)
+    }
+
+    private func saveIndex(_ files: [ReceivedFile]) throws {
+        let indexData = try encoder.encode(files)
+        try indexData.write(to: indexURL, options: .atomic)
     }
 
     private func sanitizedFilename(_ filename: String, fallbackID: UUID) -> String {

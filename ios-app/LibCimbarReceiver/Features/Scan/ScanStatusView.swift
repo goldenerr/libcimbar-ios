@@ -228,8 +228,10 @@ struct ScanStatusView: View {
     }
 }
 
-#Preview {
-    ScanStatusView(scanState: ScanState(snapshot: ScanSnapshot(phase: .decoding, recognizedFrame: true, needsSharpen: false, extractedBytes: 524_288, completedFileID: 0, scannedChunks: 72, totalChunks: 168, statusMessage: "decoded frame chunks")))
-        .padding()
-        .background(Color.black)
+struct ScanStatusView_Previews: PreviewProvider {
+    static var previews: some View {
+        ScanStatusView(scanState: ScanState(snapshot: ScanSnapshot(phase: .decoding, recognizedFrame: true, needsSharpen: false, extractedBytes: 524_288, completedFileID: 0, scannedChunks: 72, totalChunks: 168, statusMessage: "decoded frame chunks")))
+            .padding()
+            .background(Color.black)
+    }
 }

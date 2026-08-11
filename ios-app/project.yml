@@ -66,4 +66,10 @@ targets:
       path: LibCimbarReceiver/Resources/Info.plist
       properties:
         CFBundleDisplayName: LibCimbarReceiver
+        LSRequiresIPhoneOS: true
         NSCameraUsageDescription: Scan animated cimbar codes to receive files.
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UIApplicationSupportsIndirectInputEvents: true
+        UILaunchScreen: {}
+        UIRequiresFullScreen: true

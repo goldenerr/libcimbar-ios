@@ -53,6 +53,18 @@ final class AppState: ObservableObject {
         store.fileURL(for: file)
     }
 
+    func deleteReceivedFile(_ file: ReceivedFile) throws {
+        try store.deleteReceivedFile(file)
+        receivedFiles.removeAll { $0.id == file.id }
+
+        if latestReceivedFile?.id == file.id {
+            latestReceivedFile = nil
+        }
+        if shareSheetFile?.id == file.id {
+            shareSheetFile = nil
+        }
+    }
+
     private func persistCompletedFile(filename: String, data: Data) {
         do {
             let file = try store.saveCompletedFile(filename: filename, data: data)

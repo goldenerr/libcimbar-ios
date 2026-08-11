@@ -164,7 +164,7 @@ ProgressSnapshot CimbarReceiveSession::process_frame(const unsigned char* imgdat
                 _progress.status_message = "failed to recover completed file";
             }
         } else {
-            _progress.phase = SessionPhase::Reconstructing;
+            _progress.phase = SessionPhase::Decoding;
             _progress.status_message = "decoded frame chunks";
         }
     } else {
